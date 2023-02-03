@@ -4,27 +4,187 @@
  * Entry from Webpack, generates Three.js View
  */
 
-import View from "./webgl/View";
+// import View from "./webgl/View";
+import * as THREE from "three";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
 
-class App {
-	private view: View;
+// class App {
+//   private view: View;
 
-	constructor() {
-		const canvasBox = <HTMLCanvasElement>document.getElementById("webgl-canvas");
-		this.view = new View(canvasBox);
+//   constructor() {
+//     const canvasBox = <HTMLCanvasElement>(
+//       document.getElementById("webgl-canvas")
+//     );
+//     this.view = new View(canvasBox);
 
-		window.addEventListener("resize", this.resize);
-		this.update(0);
-	}
+//     window.addEventListener("resize", this.resize);
+//     this.update(0);
+//   }
 
-	private resize = (): void => {
-		this.view.onWindowResize(window.innerWidth, window.innerHeight);
-	}
+//   private resize = (): void => {
+//     this.view.onWindowResize(window.innerWidth, window.innerHeight);
+//   };
 
-	private update = (t: number): void => {
-		this.view.update(t / 1000);
-		requestAnimationFrame(this.update);
-	}
+//   private update = (t: number): void => {
+//     this.view.update(t / 1000);
+//     requestAnimationFrame(this.update);
+//   };
+// }
+
+interface SceneInfo {
+  scene: THREE.Scene;
+  camera: THREE.OrthographicCamera;
+  elem: HTMLElement;
+  mesh: THREE.Mesh;
+  controls: TrackballControls;
 }
 
-const app = new App();
+async function loadModel(url: string): Promise<THREE.Mesh> {
+  const loader = new OBJLoader();
+  try {
+    let result = await loader.loadAsync(url, function (xhr: ProgressEvent) {
+      console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
+    });
+    let mesh = <THREE.Mesh>result.children[0];
+    mesh.material = new THREE.MeshNormalMaterial();
+    mesh.geometry.center();
+    return mesh;
+  } catch (error) {
+    console.log(`Error caught during model loading: ${error}`);
+  }
+}
+
+function makeScene(elem: HTMLElement): SceneInfo {
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera();
+  scene.add(camera);
+  let sceneMesh = mesh.clone();
+  scene.add(sceneMesh);
+  const controls = new TrackballControls(camera, elem);
+  controls.noPan = true;
+
+  {
+    const color = 0xffffff;
+    const intensity = 1;
+    const light = new THREE.DirectionalLight(color, intensity);
+    light.position.set(-1, 2, 4);
+    scene.add(light);
+  }
+
+  return { scene, camera, elem, mesh: sceneMesh, controls };
+}
+
+function renderScene(sceneInfo: SceneInfo) {
+  const { scene, camera, elem, controls } = sceneInfo;
+
+  // get the viewport relative position of this element
+  const { left, right, top, bottom, width, height } =
+    elem.getBoundingClientRect();
+
+  const isOffscreen =
+    bottom < 0 ||
+    top > renderer.domElement.clientHeight ||
+    right < 0 ||
+    left > renderer.domElement.clientWidth;
+
+  if (isOffscreen) {
+    return;
+  }
+
+  controls.handleResize();
+  controls.update();
+  camera.updateProjectionMatrix();
+
+  const positiveYUpBottom = renderer.domElement.clientHeight - bottom;
+  renderer.setScissor(left, positiveYUpBottom, width, height);
+  renderer.setViewport(left, positiveYUpBottom, width, height);
+  renderer.render(scene, camera);
+}
+
+function render(time: number) {
+  time *= 0.001;
+
+  resizeRendererToDisplaySize(renderer);
+
+  renderer.setScissorTest(false);
+  renderer.clear(true, true);
+  renderer.setScissorTest(true);
+
+  renderScene(scene1);
+  renderScene(scene2);
+  renderScene(scene3);
+
+  requestAnimationFrame(render);
+}
+
+function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
+  const canvas = renderer.domElement;
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  const needResize = canvas.width !== width || canvas.height !== height;
+  if (needResize) {
+    renderer.setSize(width, height, false);
+  }
+  return needResize;
+}
+
+function setupSceneLeft() {
+  const element = document.createElement("div");
+  element.className = "innerPanelSmall";
+  document.getElementById("leftPane").appendChild(element);
+
+  const sceneInfo = makeScene(element);
+  setupCamera(sceneInfo.camera, sceneInfo.mesh);
+  return sceneInfo;
+}
+
+function setupSceneRight() {
+  const element = document.createElement("div");
+  element.className = "innerPanelLarge";
+  document.getElementById("rightPane").appendChild(element);
+
+  const sceneInfo = makeScene(element);
+  setupCamera(sceneInfo.camera, sceneInfo.mesh);
+  return sceneInfo;
+}
+
+function getBoundingSphereRadius(mesh: THREE.Mesh): number {
+  let boundingBox = new THREE.BoxHelper(mesh);
+  return boundingBox.geometry.boundingSphere.radius;
+}
+
+function setupCamera(camera: THREE.OrthographicCamera, mesh: THREE.Mesh) {
+  let aspect = window.innerWidth / window.innerHeight;
+  let frustumHeight = 2 * getBoundingSphereRadius(mesh);
+  camera.left = (frustumHeight * aspect) / -2;
+  camera.right = (frustumHeight * aspect) / 2;
+  camera.top = frustumHeight / 2;
+  camera.bottom = frustumHeight / -2;
+  camera.near = 0.1;
+  camera.far = 10;
+  camera.lookAt(0, 0, 0);
+  camera.position.z = 1;
+  camera.updateProjectionMatrix();
+}
+
+// function onWindowResize(
+//   camera: THREE.OrthographicCamera,
+//   vpW: number,
+//   vpH: number
+// ): void {
+//   renderer.setSize(vpW, vpH);
+//   camera.updateProjectionMatrix();
+// }
+
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById("canvas"),
+});
+
+const mesh = await loadModel("./models/bunny.obj");
+const scene1 = setupSceneLeft();
+const scene2 = setupSceneLeft();
+const scene3 = setupSceneRight();
+
+requestAnimationFrame(render);
+// const app = new App();
