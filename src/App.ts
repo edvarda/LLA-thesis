@@ -14,6 +14,7 @@ import basicVertexShader from "./webgl/glsl/standard.vs";
 import depthShader from "./webgl/glsl/depthShader.fs";
 import imageShader from "./webgl/glsl/image.fs";
 import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
+import { Scene } from "three";
 
 interface SceneInfo {
   scene: THREE.Scene;
@@ -24,7 +25,13 @@ interface SceneInfo {
   material?: THREE.ShaderMaterial;
 }
 
-const TEXTURE_RESOLUTION = 512;
+const properties = {
+  textureResolution: 512,
+  bilateralFilter: {
+    SigmaS: 0,
+    SigmaR: 1,
+  },
+};
 
 async function loadModel(url: string): Promise<THREE.Mesh> {
   const loader = new OBJLoader();
@@ -41,6 +48,20 @@ async function loadModel(url: string): Promise<THREE.Mesh> {
   }
 }
 
+function leftPaneElement(): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "innerPanelSmall";
+  document.getElementById("leftPane").appendChild(element);
+  return element;
+}
+
+function rightPaneElement(): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "innerPanelLarge";
+  document.getElementById("rightPane").appendChild(element);
+  return element;
+}
+
 function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   const canvas = renderer.domElement;
   const width = canvas.clientWidth;
@@ -52,24 +73,23 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   return needResize;
 }
 
-function setupSceneLeft() {
-  const element = document.createElement("div");
-  element.className = "innerPanelSmall";
-  document.getElementById("leftPane").appendChild(element);
+function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera();
+  const controls = new TrackballControls(camera, element);
+  controls.noPan = true;
 
-  const sceneInfo = makeScene(element);
-  setupCameraForModel(sceneInfo.camera, sceneInfo.mesh);
-  return sceneInfo;
-}
+  const color = 0xffffff;
+  const intensity = 1;
+  const light = new THREE.DirectionalLight(color, intensity);
+  light.position.set(-1, 2, 4);
 
-function setupSceneRight() {
-  const element = document.createElement("div");
-  element.className = "innerPanelLarge";
-  document.getElementById("rightPane").appendChild(element);
+  scene.add(camera);
+  scene.add(mesh);
+  scene.add(light);
 
-  const sceneInfo = makeScene(element);
-  setupCameraForModel(sceneInfo.camera, sceneInfo.mesh);
-  return sceneInfo;
+  fitViewToModel(camera, mesh);
+  return { scene, camera, elem: element, mesh, controls };
 }
 
 function getBoundingSphereRadius(mesh: THREE.Mesh): number {
@@ -77,10 +97,7 @@ function getBoundingSphereRadius(mesh: THREE.Mesh): number {
   return boundingBox.geometry.boundingSphere.radius;
 }
 
-function setupCameraForModel(
-  camera: THREE.OrthographicCamera,
-  mesh: THREE.Mesh
-) {
+function fitViewToModel(camera: THREE.OrthographicCamera, mesh: THREE.Mesh) {
   let aspect = window.innerWidth / window.innerHeight;
   let frustumHeight = 2 * getBoundingSphereRadius(mesh);
   camera.left = (frustumHeight * aspect) / -2;
@@ -100,25 +117,24 @@ function setupRenderTarget(target: THREE.WebGLRenderTarget) {
   const format = THREE.DepthFormat;
   const type = THREE.UnsignedShortType;
 
-  target = new THREE.WebGLRenderTarget(TEXTURE_RESOLUTION, TEXTURE_RESOLUTION);
+  target = new THREE.WebGLRenderTarget(
+    properties.textureResolution,
+    properties.textureResolution
+  );
   target.texture.minFilter = THREE.NearestFilter;
   target.texture.magFilter = THREE.NearestFilter;
   target.stencilBuffer = format === THREE.DepthStencilFormat ? true : false;
   target.depthTexture = new THREE.DepthTexture(
-    TEXTURE_RESOLUTION,
-    TEXTURE_RESOLUTION
+    properties.textureResolution,
+    properties.textureResolution
   );
   target.depthTexture.format = format;
   target.depthTexture.type = type;
   return target;
 }
 
-function setupPost(fragmentShader: string): SceneInfo {
-  const element = document.createElement("div");
-  element.className = "innerPanelLarge";
-  document.getElementById("rightPane").appendChild(element);
-  // Setup post processing stage
-  let postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+function setupDepthTextureScene(fragmentShader: string): SceneInfo {
+  let element = rightPaneElement();
   let postMaterial = new THREE.ShaderMaterial({
     vertexShader: basicVertexShader,
     fragmentShader: fragmentShader,
@@ -127,88 +143,51 @@ function setupPost(fragmentShader: string): SceneInfo {
       tDepth: { value: null },
     },
   });
-  const postPlane = new THREE.PlaneGeometry(2, 2);
-  const postQuad = new THREE.Mesh(postPlane, postMaterial);
-  let postScene = new THREE.Scene();
-  postScene.add(postQuad);
-  return {
-    scene: postScene,
-    camera: postCamera,
-    elem: element,
-    mesh: postQuad,
-    material: postMaterial,
-  };
+  let scene = getNewPostProcessingScene(postMaterial);
+  return { ...scene, elem: element };
 }
 
 function setupFinalPass(): SceneInfo {
-  const element = document.createElement("div");
-  element.className = "innerPanelSmall";
-  document.getElementById("leftPane").appendChild(element);
-  // Setup post processing stage
-  let postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  let postMaterial = new THREE.ShaderMaterial({
+  let element = leftPaneElement();
+  let imageMaterial = new THREE.ShaderMaterial({
     vertexShader: basicVertexShader,
     fragmentShader: imageShader,
     uniforms: {
       image: { value: null },
     },
   });
-  const postPlane = new THREE.PlaneGeometry(2, 2);
-  const postQuad = new THREE.Mesh(postPlane, postMaterial);
-  let postScene = new THREE.Scene();
-  postScene.add(postQuad);
-  return {
-    scene: postScene,
-    camera: postCamera,
-    elem: element,
-    mesh: postQuad,
-    material: postMaterial,
-  };
+  let scene = getNewPostProcessingScene(imageMaterial);
+  return { ...scene, elem: element };
 }
 
 function setupBilateralFilteringScene(): SceneInfo {
-  // Setup post processing stage
-  let postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  let postMaterial = new THREE.ShaderMaterial({
+  let bilateralFilterMaterial = new THREE.ShaderMaterial({
     vertexShader: basicVertexShader,
     fragmentShader: bilateralFilter,
     uniforms: {
       tNormal: { value: null },
       tDepth: { value: null },
-      sigmaL: { value: 0.01 },
-      sigmaS: { value: 10 },
+      sigmaL: { value: properties.bilateralFilter.SigmaR },
+      sigmaS: { value: properties.bilateralFilter.SigmaS },
     },
   });
-  const postPlane = new THREE.PlaneGeometry(2, 2);
-  const postQuad = new THREE.Mesh(postPlane, postMaterial);
-  let postScene = new THREE.Scene();
-  postScene.add(postQuad);
-  return {
-    scene: postScene,
-    camera: postCamera,
-    mesh: postQuad,
-    material: postMaterial,
-  };
+
+  let scene = getNewPostProcessingScene(bilateralFilterMaterial);
+  return scene;
 }
 
-function makeScene(elem: HTMLElement): SceneInfo {
-  const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera();
-  scene.add(camera);
-  let sceneMesh = mesh.clone();
-  scene.add(sceneMesh);
-  const controls = new TrackballControls(camera, elem);
-  controls.noPan = true;
-
-  {
-    const color = 0xffffff;
-    const intensity = 1;
-    const light = new THREE.DirectionalLight(color, intensity);
-    light.position.set(-1, 2, 4);
-    scene.add(light);
-  }
-
-  return { scene, camera, elem, mesh: sceneMesh, controls };
+function getNewPostProcessingScene(material: THREE.ShaderMaterial): SceneInfo {
+  let camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  let plane = new THREE.PlaneGeometry(2, 2);
+  let mesh = new THREE.Mesh(plane, material);
+  let scene = new THREE.Scene();
+  scene.add(mesh);
+  return {
+    scene,
+    camera,
+    mesh,
+    material,
+  };
 }
 
 // function onWindowResize(
@@ -290,7 +269,7 @@ const renderer = new THREE.WebGLRenderer({
   canvas: document.getElementById("canvas"),
 });
 
-const mesh = await loadModel("./models/bunny.obj");
+let mesh = await loadModel("./models/bunny.obj");
 const stats = Stats();
 document.body.appendChild(stats.dom);
 
@@ -300,8 +279,8 @@ let finalTarget: THREE.WebGLRenderTarget;
 target = setupRenderTarget(target);
 finalTarget = setupRenderTarget(finalTarget);
 
-const scene1 = setupSceneRight();
-const depthTexture = setupPost(depthShader);
+const scene1 = setupScene(rightPaneElement(), mesh);
+const depthTexture = setupDepthTextureScene(depthShader);
 const filteredTexture = setupBilateralFilteringScene();
 const postScene = setupFinalPass();
 
