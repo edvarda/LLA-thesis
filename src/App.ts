@@ -8,18 +8,23 @@
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
+import Stats from "three/examples/jsm/libs/stats.module";
 
 import basicVertexShader from "./webgl/glsl/standard.vs";
 import depthShader from "./webgl/glsl/depthShader.fs";
-import diffuseShader from "./webgl/glsl/diffuse.fs";
+import imageShader from "./webgl/glsl/image.fs";
+import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
 
 interface SceneInfo {
   scene: THREE.Scene;
   camera: THREE.OrthographicCamera;
-  elem: HTMLElement;
+  elem?: HTMLElement;
   mesh: THREE.Mesh;
   controls?: TrackballControls;
+  material?: THREE.ShaderMaterial;
 }
+
+const TEXTURE_RESOLUTION = 512;
 
 async function loadModel(url: string): Promise<THREE.Mesh> {
   const loader = new OBJLoader();
@@ -89,35 +94,36 @@ function setupCameraForModel(
   camera.updateProjectionMatrix();
 }
 
-function setupRenderTarget() {
+function setupRenderTarget(target: THREE.WebGLRenderTarget) {
   if (target) target.dispose();
 
   const format = THREE.DepthFormat;
   const type = THREE.UnsignedShortType;
 
-  target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+  target = new THREE.WebGLRenderTarget(TEXTURE_RESOLUTION, TEXTURE_RESOLUTION);
   target.texture.minFilter = THREE.NearestFilter;
   target.texture.magFilter = THREE.NearestFilter;
   target.stencilBuffer = format === THREE.DepthStencilFormat ? true : false;
   target.depthTexture = new THREE.DepthTexture(
-    window.innerWidth,
-    window.innerHeight
+    TEXTURE_RESOLUTION,
+    TEXTURE_RESOLUTION
   );
   target.depthTexture.format = format;
   target.depthTexture.type = type;
+  return target;
 }
 
-function setupPost(): SceneInfo {
+function setupPost(fragmentShader: string): SceneInfo {
   const element = document.createElement("div");
   element.className = "innerPanelLarge";
   document.getElementById("rightPane").appendChild(element);
   // Setup post processing stage
   let postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  postMaterial = new THREE.ShaderMaterial({
+  let postMaterial = new THREE.ShaderMaterial({
     vertexShader: basicVertexShader,
-    fragmentShader: depthShader,
+    fragmentShader: fragmentShader,
     uniforms: {
-      // tDiffuse: { value: null },
+      tDiffuse: { value: null },
       tDepth: { value: null },
     },
   });
@@ -130,6 +136,58 @@ function setupPost(): SceneInfo {
     camera: postCamera,
     elem: element,
     mesh: postQuad,
+    material: postMaterial,
+  };
+}
+
+function setupFinalPass(): SceneInfo {
+  const element = document.createElement("div");
+  element.className = "innerPanelSmall";
+  document.getElementById("leftPane").appendChild(element);
+  // Setup post processing stage
+  let postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  let postMaterial = new THREE.ShaderMaterial({
+    vertexShader: basicVertexShader,
+    fragmentShader: imageShader,
+    uniforms: {
+      image: { value: null },
+    },
+  });
+  const postPlane = new THREE.PlaneGeometry(2, 2);
+  const postQuad = new THREE.Mesh(postPlane, postMaterial);
+  let postScene = new THREE.Scene();
+  postScene.add(postQuad);
+  return {
+    scene: postScene,
+    camera: postCamera,
+    elem: element,
+    mesh: postQuad,
+    material: postMaterial,
+  };
+}
+
+function setupBilateralFilteringScene(): SceneInfo {
+  // Setup post processing stage
+  let postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  let postMaterial = new THREE.ShaderMaterial({
+    vertexShader: basicVertexShader,
+    fragmentShader: bilateralFilter,
+    uniforms: {
+      tNormal: { value: null },
+      tDepth: { value: null },
+      sigmaL: { value: 0.01 },
+      sigmaS: { value: 10 },
+    },
+  });
+  const postPlane = new THREE.PlaneGeometry(2, 2);
+  const postQuad = new THREE.Mesh(postPlane, postMaterial);
+  let postScene = new THREE.Scene();
+  postScene.add(postQuad);
+  return {
+    scene: postScene,
+    camera: postCamera,
+    mesh: postQuad,
+    material: postMaterial,
   };
 }
 
@@ -201,20 +259,30 @@ function render(time: number) {
   renderer.setScissorTest(true);
 
   renderSceneToElement(scene1);
-  renderSceneToElement(scene2);
-  renderSceneToElement(scene3);
-  renderer.setRenderTarget(target);
-  console.log(target);
-  renderer.render(postScene.scene, postScene.camera);
-  console.log(target);
 
-  postMaterial.uniforms.tDiffuse.value = target.texture;
-  postMaterial.uniforms.tDepth.value = target.depthTexture;
+  renderer.setRenderTarget(target);
+  renderer.clear();
+  renderer.render(scene1.scene, scene1.camera);
+
+  depthTexture.material.uniforms.tDepth.value = target.depthTexture;
+  filteredTexture.material.uniforms.tNormal.value = target.texture;
+  filteredTexture.material.uniforms.tDepth.value = target.depthTexture;
 
   renderer.setRenderTarget(null);
 
+  renderSceneToElement(depthTexture);
+
+  renderer.setRenderTarget(finalTarget);
+  renderer.clear();
+
+  renderer.render(filteredTexture.scene, filteredTexture.camera);
+
+  renderer.setRenderTarget(null);
+
+  postScene.material.uniforms.image.value = finalTarget.texture;
   renderSceneToElement(postScene);
 
+  stats.update();
   requestAnimationFrame(render);
 }
 
@@ -223,16 +291,19 @@ const renderer = new THREE.WebGLRenderer({
 });
 
 const mesh = await loadModel("./models/bunny.obj");
+const stats = Stats();
+document.body.appendChild(stats.dom);
 
 let target: THREE.WebGLRenderTarget;
-let postMaterial: THREE.ShaderMaterial;
+let finalTarget: THREE.WebGLRenderTarget;
 
-setupRenderTarget();
+target = setupRenderTarget(target);
+finalTarget = setupRenderTarget(finalTarget);
 
-const scene1 = setupSceneLeft();
-const scene2 = setupSceneLeft();
-const scene3 = setupSceneRight();
-const postScene = setupPost();
+const scene1 = setupSceneRight();
+const depthTexture = setupPost(depthShader);
+const filteredTexture = setupBilateralFilteringScene();
+const postScene = setupFinalPass();
 
 requestAnimationFrame(render);
 // const app = new App();

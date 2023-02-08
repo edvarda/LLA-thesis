@@ -5,6 +5,7 @@ uniform sampler2D tDepth;
 
 float readDepth(sampler2D depthSampler, vec2 coord) {
   float fragCoordZ = texture2D(depthSampler, coord).x;
+
   return fragCoordZ;
 }
 
