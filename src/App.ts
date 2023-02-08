@@ -14,7 +14,6 @@ import basicVertexShader from "./webgl/glsl/standard.vs";
 import depthShader from "./webgl/glsl/depthShader.fs";
 import imageShader from "./webgl/glsl/image.fs";
 import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
-import { Scene } from "three";
 
 interface SceneInfo {
   scene: THREE.Scene;
@@ -28,8 +27,8 @@ interface SceneInfo {
 const properties = {
   textureResolution: 512,
   bilateralFilter: {
-    SigmaS: 0,
-    SigmaR: 1,
+    SigmaS: 5,
+    SigmaR: 0.01,
   },
 };
 
@@ -133,11 +132,11 @@ function setupRenderTarget(target: THREE.WebGLRenderTarget) {
   return target;
 }
 
-function setupDepthTextureScene(fragmentShader: string): SceneInfo {
+function setupDepthTextureScene(): SceneInfo {
   let element = rightPaneElement();
   let postMaterial = new THREE.ShaderMaterial({
     vertexShader: basicVertexShader,
-    fragmentShader: fragmentShader,
+    fragmentShader: depthShader,
     uniforms: {
       tDiffuse: { value: null },
       tDepth: { value: null },
@@ -280,7 +279,7 @@ target = setupRenderTarget(target);
 finalTarget = setupRenderTarget(finalTarget);
 
 const scene1 = setupScene(rightPaneElement(), mesh);
-const depthTexture = setupDepthTextureScene(depthShader);
+const depthTexture = setupDepthTextureScene();
 const filteredTexture = setupBilateralFilteringScene();
 const postScene = setupFinalPass();
 
