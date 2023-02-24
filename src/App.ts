@@ -8,12 +8,15 @@
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
-import Stats from "three/examples/jsm/libs/stats.module";
 
-import basicVertexShader from "./webgl/glsl/standard.vs";
+import Stats from "three/examples/jsm/libs/stats.module";
+import GUI from "lil-gui";
+
+import basicVertexShader from "./webgl/glsl/basicVertexShader.vs";
 import depthShader from "./webgl/glsl/depthShader.fs";
-import imageShader from "./webgl/glsl/image.fs";
 import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
+import localLightAlignment from "./webgl/glsl/localLightAlignment.fs";
+import imageShader from "./webgl/glsl/image.fs";
 
 interface SceneInfo {
   scene: THREE.Scene;
@@ -22,13 +25,20 @@ interface SceneInfo {
   mesh: THREE.Mesh;
   controls?: TrackballControls;
   material?: THREE.ShaderMaterial;
+  light?: THREE.DirectionalLight;
 }
 
 const properties = {
   textureResolution: 512,
+  lightDirection: new THREE.Vector3(0.0, 1.0, 0.0),
   bilateralFilter: {
     SigmaS: 5,
     SigmaR: 0.01,
+  },
+  localLightAlignment: {
+    Sigma: 0.5,
+    Epsilon: 1e-10,
+    Gamma: 3,
   },
 };
 
@@ -47,16 +57,79 @@ async function loadModel(url: string): Promise<THREE.Mesh> {
   }
 }
 
-function leftPaneElement(): HTMLElement {
-  const element = document.createElement("div");
-  element.className = "innerPanelSmall";
-  document.getElementById("leftPane").appendChild(element);
-  return element;
+function onGuiChange() {
+  bilateralFilterMaterial.uniforms.sigmaS.value =
+    properties.bilateralFilter.SigmaS;
+  bilateralFilterMaterial.uniforms.sigmaR.value =
+    properties.bilateralFilter.SigmaR;
+  LLAMaterial.uniforms.sigma.value = properties.localLightAlignment.Sigma;
+  LLAMaterial.uniforms.gamma.value = properties.localLightAlignment.Gamma;
+  LLAMaterial.uniforms.epsilon.value = properties.localLightAlignment.Epsilon;
+  LLAMaterial.uniforms.lightDirection.value = scene.light.position.normalize();
+
+  // LLAMaterial.uniforms.lightDirection.value = new THREE.Vector3().sub(
+  //   properties.lightDirection.normalize()
+  // );
+  // scene.light.position.set(
+  //   properties.lightDirection.x,
+  //   properties.lightDirection.y,
+  //   properties.lightDirection.z
+  // );
 }
 
-function rightPaneElement(): HTMLElement {
+function setupGUI() {
+  const gui = new GUI();
+  const lightFolder = gui.addFolder("Light position");
+  // lightFolder.add(properties.lightDirection, "x", -1, 1).onChange(onGuiChange);
+  // lightFolder.add(properties.lightDirection, "y", -1, 1).onChange(onGuiChange);
+  // lightFolder.add(properties.lightDirection, "z", -1, 1).onChange(onGuiChange);
+  lightFolder.add(scene.light.position, "x", -1, 1).onChange(onGuiChange);
+  lightFolder.add(scene.light.position, "y", -1, 1).onChange(onGuiChange);
+  lightFolder.add(scene.light.position, "z", -1, 1).onChange(onGuiChange);
+  const filterFolder = gui.addFolder("Bilateral Filter");
+  filterFolder
+    .add(properties.bilateralFilter, "SigmaS", 0, 10)
+    .onChange(onGuiChange);
+  filterFolder
+    .add(properties.bilateralFilter, "SigmaR", 0, 0.5)
+    .onChange(onGuiChange);
+  filterFolder.open();
+  const llaFolder = gui.addFolder("Local Light Alignment");
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma", 0, 1)
+    .onChange(onGuiChange);
+  llaFolder
+    .add(properties.localLightAlignment, "Epsilon", 1e-12, 1)
+    .onChange(onGuiChange);
+  llaFolder
+    .add(properties.localLightAlignment, "Gamma", 0.5, 6)
+    .onChange(onGuiChange);
+}
+
+function leftPaneElement(label: string): HTMLElement {
   const element = document.createElement("div");
+  const renderFrame = document.createElement("div");
+  const labelDiv = document.createElement("div");
+  labelDiv.innerText = label;
+  element.className = "innerPanelSmall";
+  renderFrame.className = "renderFrame";
+  labelDiv.className = "label";
+  element.appendChild(renderFrame);
+  element.appendChild(labelDiv);
+  document.getElementById("leftPane").appendChild(element);
+  return renderFrame;
+}
+
+function rightPaneElement(label: string): HTMLElement {
+  const element = document.createElement("div");
+  const renderFrame = document.createElement("div");
+  const labelDiv = document.createElement("div");
+  labelDiv.innerText = label;
   element.className = "innerPanelLarge";
+  renderFrame.className = "renderFrame";
+  labelDiv.className = "label";
+  element.appendChild(renderFrame);
+  element.appendChild(labelDiv);
   document.getElementById("rightPane").appendChild(element);
   return element;
 }
@@ -81,14 +154,21 @@ function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
   const color = 0xffffff;
   const intensity = 1;
   const light = new THREE.DirectionalLight(color, intensity);
-  light.position.set(-1, 2, 4);
+  helper = new THREE.DirectionalLightHelper(light, 1);
+  scene.add(helper);
+
+  light.position.set(
+    properties.lightDirection.x,
+    properties.lightDirection.y,
+    properties.lightDirection.z
+  );
 
   scene.add(camera);
   scene.add(mesh);
   scene.add(light);
 
   fitViewToModel(camera, mesh);
-  return { scene, camera, elem: element, mesh, controls };
+  return { scene, camera, elem: element, mesh, controls, light };
 }
 
 function getBoundingSphereRadius(mesh: THREE.Mesh): number {
@@ -133,7 +213,7 @@ function setupRenderTarget(target: THREE.WebGLRenderTarget) {
 }
 
 function setupDepthTextureScene(): SceneInfo {
-  let element = rightPaneElement();
+  let element = leftPaneElement("Depth texture");
   let postMaterial = new THREE.ShaderMaterial({
     vertexShader: basicVertexShader,
     fragmentShader: depthShader,
@@ -146,33 +226,22 @@ function setupDepthTextureScene(): SceneInfo {
   return { ...scene, elem: element };
 }
 
-function setupFinalPass(): SceneInfo {
-  let element = leftPaneElement();
-  let imageMaterial = new THREE.ShaderMaterial({
-    vertexShader: basicVertexShader,
-    fragmentShader: imageShader,
-    uniforms: {
-      image: { value: null },
-    },
-  });
-  let scene = getNewPostProcessingScene(imageMaterial);
+function setupLLAPass(): SceneInfo {
+  let element = rightPaneElement("LLA Shader");
+  let scene = getNewPostProcessingScene(LLAMaterial);
   return { ...scene, elem: element };
 }
 
-function setupBilateralFilteringScene(): SceneInfo {
-  let bilateralFilterMaterial = new THREE.ShaderMaterial({
-    vertexShader: basicVertexShader,
-    fragmentShader: bilateralFilter,
-    uniforms: {
-      tNormal: { value: null },
-      tDepth: { value: null },
-      sigmaL: { value: properties.bilateralFilter.SigmaR },
-      sigmaS: { value: properties.bilateralFilter.SigmaS },
-    },
-  });
-
+function setupBilateralFilteringScene(label: string): SceneInfo {
+  let element = leftPaneElement(label);
   let scene = getNewPostProcessingScene(bilateralFilterMaterial);
-  return scene;
+  return { ...scene, elem: element };
+}
+
+function setupPostScene(label: string): SceneInfo {
+  let element = leftPaneElement(label);
+  let scene = getNewPostProcessingScene(postMaterial);
+  return { ...scene, elem: element };
 }
 
 function getNewPostProcessingScene(material: THREE.ShaderMaterial): SceneInfo {
@@ -227,61 +296,148 @@ function renderSceneToElement(sceneInfo: SceneInfo) {
   renderer.render(scene, camera);
 }
 
+function renderFilterPass(
+  pass: SceneInfo,
+  source: THREE.WebGLRenderTarget,
+  target: THREE.WebGLRenderTarget,
+  depthTexture: THREE.DepthTexture
+) {
+  // Set uniforms for pass
+  pass.material.uniforms.tNormal.value = source.texture;
+  pass.material.uniforms.tDepth.value = depthTexture;
+
+  // Render filterpass to target
+  renderer.setRenderTarget(target);
+  renderer.clear();
+  renderer.render(pass.scene, pass.camera);
+
+  renderer.setRenderTarget(null);
+  renderSceneToElement(pass);
+}
+
 function render(time: number) {
   time *= 0.001;
+
+  // let scaleSpace: THREE.Texture[] = [];
 
   resizeRendererToDisplaySize(renderer);
 
   renderer.setScissorTest(false);
-  renderer.clear(true, true);
+  renderer.clear();
   renderer.setScissorTest(true);
 
-  renderSceneToElement(scene1);
+  // Render scene with mesh to canvas
+  renderSceneToElement(scene);
 
-  renderer.setRenderTarget(target);
+  // Render scene with mesh to texture
+  renderer.setRenderTarget(firstRender);
   renderer.clear();
-  renderer.render(scene1.scene, scene1.camera);
+  renderer.render(scene.scene, scene.camera);
 
-  depthTexture.material.uniforms.tDepth.value = target.depthTexture;
-  filteredTexture.material.uniforms.tNormal.value = target.texture;
-  filteredTexture.material.uniforms.tDepth.value = target.depthTexture;
-
+  // Render depth texture
+  depthTextureScene.material.uniforms.tDepth.value = firstRender.depthTexture;
   renderer.setRenderTarget(null);
+  renderSceneToElement(depthTextureScene);
 
-  renderSceneToElement(depthTexture);
+  // scaleSpace.push(firstRender.texture.clone());
+  renderFilterPass(filterPass1, firstRender, targetA, firstRender.depthTexture);
+  // scaleSpace.push(targetA.texture.clone());
+  renderFilterPass(filterPass2, targetA, targetB, firstRender.depthTexture);
+  // scaleSpace.push(targetB.texture.clone());
+  // renderFilterPass(filterPass3, targetB, targetA, firstRender.depthTexture);
+  // scaleSpace.push(targetA.texture.clone());
+  // renderFilterPass(filterPass4, targetA, targetB, firstRender.depthTexture);
+  // scaleSpace.push(targetB.texture.clone());
 
-  renderer.setRenderTarget(finalTarget);
-  renderer.clear();
+  LLAPass.material.uniforms.tScaleFine.value = firstRender.texture;
+  LLAPass.material.uniforms.tScaleCoarse.value = targetB.texture;
+  if (first) {
+    // console.log(scaleSpace);
+    console.log(filterPass4.material.uniforms.tNormal.value);
+    console.log(LLAPass.material.uniforms.tScaleCoarse.value);
+    console.log(LLAPass.material.uniforms.tScaleFine.value);
+  }
+  first = false;
 
-  renderer.render(filteredTexture.scene, filteredTexture.camera);
-
-  renderer.setRenderTarget(null);
-
-  postScene.material.uniforms.image.value = finalTarget.texture;
-  renderSceneToElement(postScene);
+  renderSceneToElement(LLAPass);
+  // renderSceneToElement(postPass);
 
   stats.update();
+  helper.update();
   requestAnimationFrame(render);
 }
 
+// Script part below
+
 const renderer = new THREE.WebGLRenderer({
+  alpha: true,
   canvas: document.getElementById("canvas"),
 });
-
-let mesh = await loadModel("./models/bunny.obj");
 const stats = Stats();
 document.body.appendChild(stats.dom);
+let helper: THREE.DirectionalLightHelper;
+let mesh = await loadModel("./models/bunny.obj");
+let bilateralFilterMaterial = new THREE.ShaderMaterial({
+  vertexShader: basicVertexShader,
+  fragmentShader: bilateralFilter,
+  uniforms: {
+    tNormal: { value: null },
+    tDepth: { value: null },
+    sigmaR: { value: properties.bilateralFilter.SigmaR },
+    sigmaS: { value: properties.bilateralFilter.SigmaS },
+  },
+});
 
-let target: THREE.WebGLRenderTarget;
-let finalTarget: THREE.WebGLRenderTarget;
+let LLAMaterial = new THREE.ShaderMaterial({
+  vertexShader: basicVertexShader,
+  fragmentShader: localLightAlignment,
+  uniforms: {
+    tScaleFine: { value: null },
+    tScaleCoarse: { value: null },
+    sigma: { value: properties.localLightAlignment.Sigma },
+    gamma: { value: properties.localLightAlignment.Gamma },
+    epsilon: { value: properties.localLightAlignment.Epsilon },
+    lightDirection: {
+      value: properties.lightDirection.normalize(),
+    },
+  },
+});
 
-target = setupRenderTarget(target);
-finalTarget = setupRenderTarget(finalTarget);
+let postMaterial = new THREE.ShaderMaterial({
+  vertexShader: basicVertexShader,
+  fragmentShader: imageShader,
+  uniforms: {
+    image: { value: null },
+  },
+});
 
-const scene1 = setupScene(rightPaneElement(), mesh);
-const depthTexture = setupDepthTextureScene();
-const filteredTexture = setupBilateralFilteringScene();
-const postScene = setupFinalPass();
+let targetA: THREE.WebGLRenderTarget,
+  targetB: THREE.WebGLRenderTarget,
+  firstRender: THREE.WebGLRenderTarget;
 
+firstRender = setupRenderTarget(firstRender);
+targetA = setupRenderTarget(targetA);
+targetB = setupRenderTarget(targetB);
+
+const scene = setupScene(rightPaneElement("Original Scene"), mesh);
+const depthTextureScene = setupDepthTextureScene();
+const filterPass1 = setupBilateralFilteringScene(
+  "bilateral filter: first pass"
+);
+const filterPass2 = setupBilateralFilteringScene(
+  "bilateral filter: second pass"
+);
+const filterPass3 = setupBilateralFilteringScene(
+  "bilateral filter: third pass"
+);
+const filterPass4 = setupBilateralFilteringScene(
+  "bilateral filter: fourth pass"
+);
+const LLAPass = setupLLAPass();
+// const postPass = setupPostScene("Imageshader");
+
+setupGUI();
+
+let first = true;
 requestAnimationFrame(render);
 // const app = new App();

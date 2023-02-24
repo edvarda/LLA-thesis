@@ -1,9 +1,8 @@
 #define F 0.619928135
 
-// layout(location = 0) out vec4 filteredFragment;
-uniform sampler2D tNormal;
-uniform sampler2D tDepth;
-uniform float sigmaL;
+uniform highp sampler2D tNormal;
+uniform highp sampler2D tDepth;
+uniform float sigmaR;
 uniform float sigmaS;
 
 varying vec2 vUv;
@@ -17,14 +16,14 @@ vec4 getNormal(in vec2 position) {
 }
 
 void main() {
-  const float epsilon = 1e-10;
+  const float epsilon = 1e-12;
 
   float sigmaSpatial = max(sigmaS, epsilon);
   float halfWindowSize = ceil(sigmaSpatial / F);
   vec2 pixelSize = 1.0 / vec2(textureSize(tNormal, 0)); // Both textures should be the same size
 
   float facS = -1. / (2. * sigmaSpatial * sigmaSpatial);
-  float facL = -1. / (2. * sigmaL * sigmaL);
+  float facL = -1. / (2. * sigmaR * sigmaR);
 
   float sumWeights = 0.;
   vec4 sumNormals = vec4(0.);
@@ -51,6 +50,5 @@ void main() {
     }
   }
 
-  // filteredFragment = sumColor / sumWeights;
   gl_FragColor = sumNormals / sumWeights;
 }
