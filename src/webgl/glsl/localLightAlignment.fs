@@ -8,13 +8,13 @@
 
 // INPUTS 
 
-uniform vec3 lightDirection;
 uniform highp sampler2D tScaleFine;
 uniform highp sampler2D tScaleCoarse;
 uniform float sigma;
 uniform float epsilon;
 uniform float gamma;
 varying vec2 vUv;
+in vec4 lightDir;
 
 #define SPEC false
 #define DIFF true
@@ -30,8 +30,6 @@ varying vec2 vUv;
 #define RED vec3(1.0,0.0,0.0) 
 #define GREEN vec3(0.0,1.0,0.0) 
 #define PURP vec3(1.0,0.0,1.0)
-
-#define LIGHT vec3(0.,1.,0.)
 
 //////////////////////////!
 // LOCAL LIGHT ALIGNMENT /!
@@ -63,49 +61,79 @@ mat3 L(in vec3 ni, in vec3 ni1) {
   return mat3(x, y, z);
 }
 
-// vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in vec3 v, in float si, in bool spec) {
+// // vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in vec3 v, in float si, in bool spec) {
+// vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
+//   if(si < epsilon) // no need to compute the adjustment at that scale...
+//     return RED;
+
+//   // if(spec) { // for specular materials we use the reflected view as guide
+//   //   ni = reflect(v, ni);
+//   //   ni1 = reflect(v, ni1);
+//   // }
+
+//   // if(1. - abs(dot(ni, ni1)) < epsilon) {// if the detail and base are already aligned...
+//   //   return BLUE;
+//   // }
+
+//   mat3 Li = L(ni, ni1); // local frame L_i
+//     // vectors to local frame
+//   li = li * Li;	// in GLSL: v * M <=> M^T * v
+//   vec3 gi = ni * Li;	// guiding vector
+//   // vec3 gi = ni;	// guiding vector
+//   // return Li * li;
+
+//   vec3 x = normalize(ni - ni1 * (dot(ni1, ni)));
+
+//     // if the light is not facing the detail, we align with the tangent
+//   // if(li.x < 0.) // equivalent to the dot product check from the paper
+//   if(dot(normalize(li), x) >= 0.) // equivalent to the dot product check from the paper
+//   {
+//     gi = vec3(-gi.z, gi.y, gi.x);
+//     // return GREEN;
+//   }
+
+//   vec2 gp = normalize(gi.xy);
+//   vec2 lp = normalize(li.xy);
+//   float tha = acos(dot(lp, gp));    // azimuthal angle
+//   // float lmbd1 = 1. - min(1., tha / HALFPI); // confidence value lambda_1
+//   // float lmbd2 = length((ni * Li).xy);   // confidence value lambda_2
+
+//   // float theta = si * W(lmbd1 * lmbd2) * acos(dot(li, gi));
+//   float theta = si * acos(dot(li, gi));
+//   vec3 a = normalize(cross(li, gi));	 // rotation axis a
+
+//   // return PURP;
+//   return Li * rotateLight(li, a, theta); // we return the rotated light direction
+//   // return rotateLight(li, a, theta); // we return the rotated light direction
+// }
+
 vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
   if(si < epsilon) // no need to compute the adjustment at that scale...
-    return RED;
+    return li;
 
-  // if(spec) { // for specular materials we use the reflected view as guide
-  //   ni = reflect(v, ni);
-  //   ni1 = reflect(v, ni1);
-  // }
-
-  // if(1. - abs(dot(ni, ni1)) < epsilon) {// if the detail and base are already aligned...
-  //   return BLUE;
-  // }
+  if(1. - abs(dot(ni, ni1)) < epsilon) // if the detail and base are
+    return li;                        // already aligned...
 
   mat3 Li = L(ni, ni1); // local frame L_i
-    // vectors to local frame
-  //li = li * Li;	// in GLSL: v * M <=> M^T * v
-  //vec3 gi = ni * Li;	// guiding vector
-  vec3 gi = ni;	// guiding vector
-  // return Li * li;
 
-  vec3 x = normalize(ni - ni1 * (dot(ni1, ni)));
+    // vectors to local frame
+  li = li * Li;	// in GLSL: v * M <=> M^T * v
+  vec3 gi = ni * Li;	// guiding vector
 
     // if the light is not facing the detail, we align with the tangent
-  // if(li.x < 0.) // equivalent to the dot product check from the paper
-  if(dot(normalize(li), Li[0]) >= 0.) // equivalent to the dot product check from the paper
-  {
+  if(li.x < 0.) // equivalent to the dot product check from the paper
     gi = vec3(-gi.z, gi.y, gi.x);
-    // return GREEN;
-  }
 
   vec2 gp = normalize(gi.xy);
   vec2 lp = normalize(li.xy);
   float tha = acos(dot(lp, gp));    // azimuthal angle
-  float lmbd1 = 1. - min(1., tha / HALFPI); // confidence value lambda_1
+  float lmbd1 = 1. - min(1., tha / 1.57079632679); // confidence value lambda_1
   float lmbd2 = length((ni * Li).xy);   // confidence value lambda_2
 
   float theta = si * W(lmbd1 * lmbd2) * acos(dot(li, gi));
   vec3 a = normalize(cross(li, gi));	 // rotation axis a
 
-  // return PURP;
-  // return Li * rotateLight(li, a, theta); // we return the rotated light direction
-  return rotateLight(li, a, theta); // we return the rotated light direction
+  return Li * rotateLight(li, a, theta); // we return the rotated light direction
 }
 
 // ////////////////////////////////!
@@ -142,42 +170,22 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
 // }
 
 void main() {
-  // load();
-  // col = vec4(0.);
 
-  // vec3 ro = vec3(0.); //vec3(iTime*0.02, 0.2*cos(iTime*0.1), 0.);
-  // vec3 l, ld, ls, rd = rayd(u, R, T);          // incident view vector
-  // l = normalize(vec3(-.5, 0., -1.));  // light direction
-
-  // vec3 t = vec3(0., 1., 0.);
-  // vec3 b = normalize(cross(t, l));
-  // t = normalize(cross(l, b));
-  // ld = ls = normalize(l + t * .6 * sin(iTime) + b * .6 * cos(iTime)); // move the light in a cone
-
-  // enhancement using local light alignment
-
-  vec3 ld = lightDirection;
-
-  // for(int i = S - 2; i >= 0; --i) {
-  // ld = adjustLight(N(i), N(i + 1), ld, rd, sigmaD(i), false);
+  vec3 ld = normalize(lightDir.xyz);
 
   vec3 ni = texture(tScaleFine, vUv).xyz;
-  vec3 ni1 = texture(tScaleFine, vUv).xyz;
+  vec3 ni1 = texture(tScaleCoarse, vUv).xyz;
+
   if(ni == vec3(0) || ni1 == vec3(0)) {
     gl_FragColor = vec4(BACKGROUNDCOLOR, 1.);
     return;
   }
-  vec3 ld_adjusted = adjustLight(ni, ni1, LIGHT, sigma);
+
+  vec3 ld_adjusted = adjustLight(ni, ni1, ld, sigma);
   //   // ls = adjustLight(N(i), N(i + 1), ls, rd, sigmaS(i), true);
   // }
 
-    // lighting
-  // vec3 n = N(0);
-  // vec3 kd = .7 * vec3(1.2, 1.1, .8) * max(0., dot(n, ld)) * texture(iChannel1, (ro + DIST * rd).xy).rgb;
-  // vec3 ks = vec3(.3 * spec(ls, n, -rd, 10., .9));
-  // vec4 c = vec4(kd + ks, 1.);
-
-  vec3 n = texture2D(tScaleFine, vUv).xyz;
+  vec3 n = ni;
   vec3 col = max(dot(n, ld_adjusted), 0.) * ALBEDO;
   gl_FragColor = vec4(col, 1.);
 }

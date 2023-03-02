@@ -13,6 +13,7 @@ import Stats from "three/examples/jsm/libs/stats.module";
 import GUI from "lil-gui";
 
 import basicVertexShader from "./webgl/glsl/basicVertexShader.vs";
+import LLAVertexShader from "./webgl/glsl/LLAVertexShader.vs";
 import depthShader from "./webgl/glsl/depthShader.fs";
 import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
 import localLightAlignment from "./webgl/glsl/localLightAlignment.fs";
@@ -20,7 +21,7 @@ import imageShader from "./webgl/glsl/image.fs";
 
 interface SceneInfo {
   scene: THREE.Scene;
-  camera: THREE.OrthographicCamera;
+  camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
   elem?: HTMLElement;
   mesh: THREE.Mesh;
   controls?: TrackballControls;
@@ -147,7 +148,7 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 
 function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera();
+  const camera = new THREE.PerspectiveCamera();
   const controls = new TrackballControls(camera, element);
   controls.noPan = true;
 
@@ -176,17 +177,16 @@ function getBoundingSphereRadius(mesh: THREE.Mesh): number {
   return boundingBox.geometry.boundingSphere.radius;
 }
 
-function fitViewToModel(camera: THREE.OrthographicCamera, mesh: THREE.Mesh) {
-  let aspect = window.innerWidth / window.innerHeight;
-  let frustumHeight = 2 * getBoundingSphereRadius(mesh);
-  camera.left = (frustumHeight * aspect) / -2;
-  camera.right = (frustumHeight * aspect) / 2;
-  camera.top = frustumHeight / 2;
-  camera.bottom = frustumHeight / -2;
-  camera.near = 0.1;
+function fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
+  let height = 2 * getBoundingSphereRadius(mesh);
+  let fov = 60;
+  let dist = height / 2 / Math.tan((Math.PI * fov) / 360);
+  camera.near = 0.01;
   camera.far = 10;
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.fov = fov;
   camera.lookAt(0, 0, 0);
-  camera.position.z = 1;
+  camera.position.z = dist;
   camera.updateProjectionMatrix();
 }
 
@@ -389,7 +389,7 @@ let bilateralFilterMaterial = new THREE.ShaderMaterial({
 });
 
 let LLAMaterial = new THREE.ShaderMaterial({
-  vertexShader: basicVertexShader,
+  vertexShader: LLAVertexShader,
   fragmentShader: localLightAlignment,
   uniforms: {
     tScaleFine: { value: null },
