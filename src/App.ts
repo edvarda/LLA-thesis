@@ -7,7 +7,8 @@
 // import View from "./webgl/View";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
-import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import Stats from "three/examples/jsm/libs/stats.module";
 import GUI from "lil-gui";
@@ -18,27 +19,33 @@ import depthShader from "./webgl/glsl/depthShader.fs";
 import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
 import localLightAlignment from "./webgl/glsl/localLightAlignment.fs";
 import imageShader from "./webgl/glsl/image.fs";
+import normalVertexShader from "./webgl/glsl/normalVertexShader.vs";
+import normalFragmentShader from "./webgl/glsl/normalFragmentShader.fs";
 
 interface SceneInfo {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
   elem?: HTMLElement;
   mesh: THREE.Mesh;
-  controls?: TrackballControls;
+  controls?: OrbitControls;
   material?: THREE.ShaderMaterial;
   light?: THREE.DirectionalLight;
 }
 
 const properties = {
   textureResolution: 512,
-  lightDirection: new THREE.Vector3(0.0, 1.0, 0.0),
+  lightPosition: {
+    x: 0,
+    y: 1,
+    z: 0.5,
+  },
   bilateralFilter: {
     SigmaS: 5,
     SigmaR: 0.01,
   },
   localLightAlignment: {
     Sigma: 0.5,
-    Epsilon: 1e-10,
+    Epsilon: 1e-6,
     Gamma: 3,
   },
 };
@@ -50,8 +57,14 @@ async function loadModel(url: string): Promise<THREE.Mesh> {
       console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
     });
     let mesh = <THREE.Mesh>result.children[0];
-    mesh.material = new THREE.MeshNormalMaterial();
+    mesh.material = new THREE.ShaderMaterial({
+      vertexShader: normalVertexShader,
+      fragmentShader: normalFragmentShader,
+    });
+    mesh.geometry.deleteAttribute("normal");
+    mesh.geometry = mergeVertices(mesh.geometry);
     mesh.geometry.center();
+    mesh.geometry.computeVertexNormals();
     return mesh;
   } catch (error) {
     console.log(`Error caught during model loading: ${error}`);
@@ -66,27 +79,15 @@ function onGuiChange() {
   LLAMaterial.uniforms.sigma.value = properties.localLightAlignment.Sigma;
   LLAMaterial.uniforms.gamma.value = properties.localLightAlignment.Gamma;
   LLAMaterial.uniforms.epsilon.value = properties.localLightAlignment.Epsilon;
-  LLAMaterial.uniforms.lightDirection.value = scene.light.position.normalize();
-
-  // LLAMaterial.uniforms.lightDirection.value = new THREE.Vector3().sub(
-  //   properties.lightDirection.normalize()
-  // );
-  // scene.light.position.set(
-  //   properties.lightDirection.x,
-  //   properties.lightDirection.y,
-  //   properties.lightDirection.z
-  // );
+  LLAMaterial.uniforms.lightDirection.value = properties.lightPosition;
 }
 
 function setupGUI() {
   const gui = new GUI();
   const lightFolder = gui.addFolder("Light position");
-  // lightFolder.add(properties.lightDirection, "x", -1, 1).onChange(onGuiChange);
-  // lightFolder.add(properties.lightDirection, "y", -1, 1).onChange(onGuiChange);
-  // lightFolder.add(properties.lightDirection, "z", -1, 1).onChange(onGuiChange);
-  lightFolder.add(scene.light.position, "x", -1, 1).onChange(onGuiChange);
-  lightFolder.add(scene.light.position, "y", -1, 1).onChange(onGuiChange);
-  lightFolder.add(scene.light.position, "z", -1, 1).onChange(onGuiChange);
+  lightFolder.add(properties.lightPosition, "x", -1, 1).onChange(onGuiChange);
+  lightFolder.add(properties.lightPosition, "y", -1, 1).onChange(onGuiChange);
+  lightFolder.add(properties.lightPosition, "z", -1, 1).onChange(onGuiChange);
   const filterFolder = gui.addFolder("Bilateral Filter");
   filterFolder
     .add(properties.bilateralFilter, "SigmaS", 0, 10)
@@ -100,7 +101,7 @@ function setupGUI() {
     .add(properties.localLightAlignment, "Sigma", 0, 1)
     .onChange(onGuiChange);
   llaFolder
-    .add(properties.localLightAlignment, "Epsilon", 1e-12, 1)
+    .add(properties.localLightAlignment, "Epsilon", 1e-10, 1e-4)
     .onChange(onGuiChange);
   llaFolder
     .add(properties.localLightAlignment, "Gamma", 0.5, 6)
@@ -149,31 +150,24 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
-  const controls = new TrackballControls(camera, element);
-  controls.noPan = true;
+  const controls = new OrbitControls(camera, element);
 
   const color = 0xffffff;
   const intensity = 1;
-  const light = new THREE.DirectionalLight(color, intensity);
-  helper = new THREE.DirectionalLightHelper(light, 1);
-  scene.add(helper);
-
-  light.position.set(
-    properties.lightDirection.x,
-    properties.lightDirection.y,
-    properties.lightDirection.z
-  );
-
+  const axesHelper = new THREE.AxesHelper(1);
+  scene.add(axesHelper);
   scene.add(camera);
   scene.add(mesh);
-  scene.add(light);
 
   fitViewToModel(camera, mesh);
-  return { scene, camera, elem: element, mesh, controls, light };
+  return { scene, camera, elem: element, mesh, controls };
 }
 
 function getBoundingSphereRadius(mesh: THREE.Mesh): number {
   let boundingBox = new THREE.BoxHelper(mesh);
+  // console.log(
+  //   `boundingsphere radius: ${boundingBox.geometry.boundingSphere.radius}`
+  // );
   return boundingBox.geometry.boundingSphere.radius;
 }
 
@@ -285,7 +279,6 @@ function renderSceneToElement(sceneInfo: SceneInfo) {
   }
 
   if (!!controls) {
-    controls.handleResize();
     controls.update();
   }
   camera.updateProjectionMatrix();
@@ -353,9 +346,9 @@ function render(time: number) {
   LLAPass.material.uniforms.tScaleCoarse.value = targetB.texture;
   if (first) {
     // console.log(scaleSpace);
-    console.log(filterPass4.material.uniforms.tNormal.value);
-    console.log(LLAPass.material.uniforms.tScaleCoarse.value);
-    console.log(LLAPass.material.uniforms.tScaleFine.value);
+    // console.log(filterPass4.material.uniforms.tNormal.value);
+    // console.log(LLAPass.material.uniforms.tScaleCoarse.value);
+    // console.log(LLAPass.material.uniforms.tScaleFine.value);
   }
   first = false;
 
@@ -363,7 +356,6 @@ function render(time: number) {
   // renderSceneToElement(postPass);
 
   stats.update();
-  helper.update();
   requestAnimationFrame(render);
 }
 
@@ -375,8 +367,9 @@ const renderer = new THREE.WebGLRenderer({
 });
 const stats = Stats();
 document.body.appendChild(stats.dom);
-let helper: THREE.DirectionalLightHelper;
-let mesh = await loadModel("./models/bunny.obj");
+// await loadGLTFModel("./model.gltf");
+let mesh = await loadModel("./models/stanford-bunny.obj");
+console.log(mesh);
 let bilateralFilterMaterial = new THREE.ShaderMaterial({
   vertexShader: basicVertexShader,
   fragmentShader: bilateralFilter,
@@ -398,7 +391,7 @@ let LLAMaterial = new THREE.ShaderMaterial({
     gamma: { value: properties.localLightAlignment.Gamma },
     epsilon: { value: properties.localLightAlignment.Epsilon },
     lightDirection: {
-      value: properties.lightDirection.normalize(),
+      value: properties.lightPosition,
     },
   },
 });

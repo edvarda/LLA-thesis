@@ -14,7 +14,7 @@ uniform float sigma;
 uniform float epsilon;
 uniform float gamma;
 varying vec2 vUv;
-in vec4 lightDir;
+in vec3 lightDir;
 
 #define SPEC false
 #define DIFF true
@@ -23,7 +23,7 @@ in vec4 lightDir;
 
 #define HALFPI    1.57079632679
 
-#define ALBEDO vec3(0.8,0.8,0) // Light gray
+#define ALBEDO vec3(0.8) // Light gray
 #define BACKGROUNDCOLOR vec3(0.4,0.,0.) //Dark red
 
 #define BLUE vec3(0.0,0.0,1.0) 
@@ -171,7 +171,7 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
 
 void main() {
 
-  vec3 ld = normalize(lightDir.xyz);
+  vec3 ld = normalize(lightDir);
 
   vec3 ni = texture(tScaleFine, vUv).xyz;
   vec3 ni1 = texture(tScaleCoarse, vUv).xyz;
@@ -181,11 +181,11 @@ void main() {
     return;
   }
 
+  ni = normalize(ni);
+  ni1 = normalize(ni1);
   vec3 ld_adjusted = adjustLight(ni, ni1, ld, sigma);
-  //   // ls = adjustLight(N(i), N(i + 1), ls, rd, sigmaS(i), true);
-  // }
 
   vec3 n = ni;
-  vec3 col = max(dot(n, ld_adjusted), 0.) * ALBEDO;
+  vec3 col = ALBEDO * max(dot(n, ld_adjusted), 0.0);
   gl_FragColor = vec4(col, 1.);
 }
