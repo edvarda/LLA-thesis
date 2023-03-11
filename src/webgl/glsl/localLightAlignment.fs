@@ -116,11 +116,13 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
   if(si < epsilon) // no need to compute the adjustment at that scale...
     return li;
 
+  ni = normalize(ni);
+  ni1 = normalize(ni1);
+
   if(1. - abs(dot(ni, ni1)) < epsilon) // if the detail and base are
     return li;                        // already aligned...
 
   mat3 Li = L(ni, ni1); // local frame L_i
-
     // vectors to local frame
   li = li * Li;	// in GLSL: v * M <=> M^T * v
   vec3 gi = ni * Li;	// guiding vector
@@ -144,11 +146,11 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
 void main() {
   vec3 lightDirection = normalize(lightDir);
 
-  vec3 n_0 = normalize(texture(scale0, vUv).xyz);
-  vec3 n_1 = normalize(texture(scale1, vUv).xyz);
-  vec3 n_2 = normalize(texture(scale2, vUv).xyz);
-  vec3 n_3 = normalize(texture(scale3, vUv).xyz);
-  vec3 n_4 = normalize(texture(scale4, vUv).xyz);
+  vec3 n_0 = texture(scale0, vUv).xyz;
+  vec3 n_1 = texture(scale1, vUv).xyz;
+  vec3 n_2 = texture(scale2, vUv).xyz;
+  vec3 n_3 = texture(scale3, vUv).xyz;
+  vec3 n_4 = texture(scale4, vUv).xyz;
 
   vec3 adjustedLightDirection;
 

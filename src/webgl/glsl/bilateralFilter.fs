@@ -7,12 +7,12 @@ uniform float sigmaS;
 
 varying vec2 vUv;
 
-vec4 getDepth(in vec2 position) {
-  return texture(tDepth, position);
+vec3 getDepth(in vec2 position) {
+  return texture(tDepth, position).xyz;
 }
 
-vec4 getNormal(in vec2 position) {
-  return texture(tNormal, position);
+vec3 getNormal(in vec2 position) {
+  return texture(tNormal, position).xyz;
 }
 
 void main() {
@@ -26,16 +26,16 @@ void main() {
   float facL = -1. / (2. * sigmaR * sigmaR);
 
   float sumWeights = 0.;
-  vec4 sumNormals = vec4(0.);
+  vec3 sumNormals = vec3(0.);
 
-  vec4 referenceDepth = getDepth(vUv);
+  vec3 referenceDepth = getDepth(vUv);
 
   // Iterate over fragments inside the window
   for(float i = -halfWindowSize; i <= halfWindowSize; ++i) {
     for(float j = -halfWindowSize; j <= halfWindowSize; ++j) {
       vec2 omegaPosition = vec2(i, j);
-      vec4 omegaDepth = getDepth(vUv + omegaPosition * pixelSize);
-      vec4 omegaNormal = getNormal(vUv + omegaPosition * pixelSize);
+      vec3 omegaDepth = getDepth(vUv + omegaPosition * pixelSize);
+      vec3 omegaNormal = getNormal(vUv + omegaPosition * pixelSize);
 
       // distances to reference fragment in spatial and range terms
       float distanceSpatial = length(omegaPosition);
@@ -50,5 +50,6 @@ void main() {
     }
   }
 
-  gl_FragColor = sumNormals / sumWeights;
+  gl_FragColor.xyz = sumNormals / sumWeights;
+  gl_FragColor.w = 1.0;
 }
