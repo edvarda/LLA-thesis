@@ -1,8 +1,9 @@
 #include <packing>
 
 varying vec2 vUv;
-uniform sampler2D image;
+uniform highp sampler2D tDiffuse;
 
 void main() {
-  gl_FragColor = texture2D(image, vUv);
+  gl_FragColor.rgb = texture2D(tDiffuse, vUv).rgb;
+  gl_FragColor.a = 1.0;
 }

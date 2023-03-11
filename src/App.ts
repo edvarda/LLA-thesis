@@ -18,7 +18,6 @@ import LLAVertexShader from "./webgl/glsl/LLAVertexShader.vs";
 import depthShader from "./webgl/glsl/depthShader.fs";
 import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
 import localLightAlignment from "./webgl/glsl/localLightAlignment.fs";
-import imageShader from "./webgl/glsl/image.fs";
 import normalVertexShader from "./webgl/glsl/normalVertexShader.vs";
 import normalFragmentShader from "./webgl/glsl/normalFragmentShader.fs";
 
@@ -40,11 +39,16 @@ const properties = {
     z: 0.5,
   },
   bilateralFilter: {
-    SigmaS: 5,
+    SigmaS: 1.5,
+    SigmaSMultiplier: 1.7,
     SigmaR: 0.01,
   },
   localLightAlignment: {
-    Sigma: 0.5,
+    Sigma_0: 0.5,
+    Sigma_1: 0.5,
+    Sigma_2: 0.5,
+    Sigma_3: 0.5,
+    Sigma_all: 0.5,
     Epsilon: 1e-6,
     Gamma: 3,
   },
@@ -76,10 +80,23 @@ function onGuiChange() {
     properties.bilateralFilter.SigmaS;
   bilateralFilterMaterial.uniforms.sigmaR.value =
     properties.bilateralFilter.SigmaR;
-  LLAMaterial.uniforms.sigma.value = properties.localLightAlignment.Sigma;
+  LLAMaterial.uniforms.sigma.value = [
+    properties.localLightAlignment.Sigma_0,
+    properties.localLightAlignment.Sigma_1,
+    properties.localLightAlignment.Sigma_2,
+    properties.localLightAlignment.Sigma_3,
+  ];
   LLAMaterial.uniforms.gamma.value = properties.localLightAlignment.Gamma;
   LLAMaterial.uniforms.epsilon.value = properties.localLightAlignment.Epsilon;
   LLAMaterial.uniforms.lightDirection.value = properties.lightPosition;
+}
+
+function onAllSigmaChange(newVal: number) {
+  properties.localLightAlignment.Sigma_0 = newVal;
+  properties.localLightAlignment.Sigma_1 = newVal;
+  properties.localLightAlignment.Sigma_2 = newVal;
+  properties.localLightAlignment.Sigma_3 = newVal;
+  onGuiChange();
 }
 
 function setupGUI() {
@@ -93,13 +110,34 @@ function setupGUI() {
     .add(properties.bilateralFilter, "SigmaS", 0, 10)
     .onChange(onGuiChange);
   filterFolder
+    .add(properties.bilateralFilter, "SigmaSMultiplier", 1, 2.5)
+    .onChange(onGuiChange);
+  filterFolder
     .add(properties.bilateralFilter, "SigmaR", 0, 0.5)
     .onChange(onGuiChange);
+
   filterFolder.open();
   const llaFolder = gui.addFolder("Local Light Alignment");
   llaFolder
-    .add(properties.localLightAlignment, "Sigma", 0, 1)
-    .onChange(onGuiChange);
+    .add(properties.localLightAlignment, "Sigma_0", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_1", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_2", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_3", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_all", 0, 1)
+    .onChange(onAllSigmaChange);
+
   llaFolder
     .add(properties.localLightAlignment, "Epsilon", 1e-10, 1e-4)
     .onChange(onGuiChange);
@@ -154,8 +192,8 @@ function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
 
   const color = 0xffffff;
   const intensity = 1;
-  const axesHelper = new THREE.AxesHelper(1);
-  scene.add(axesHelper);
+  // const axesHelper = new THREE.AxesHelper(1);
+  // scene.add(axesHelper);
   scene.add(camera);
   scene.add(mesh);
 
@@ -175,8 +213,8 @@ function fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
   let height = 2 * getBoundingSphereRadius(mesh);
   let fov = 60;
   let dist = height / 2 / Math.tan((Math.PI * fov) / 360);
-  camera.near = 0.01;
-  camera.far = 10;
+  camera.near = dist - height / 2;
+  camera.far = dist + height / 2;
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.fov = fov;
   camera.lookAt(0, 0, 0);
@@ -184,18 +222,16 @@ function fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
   camera.updateProjectionMatrix();
 }
 
-function setupRenderTarget(target: THREE.WebGLRenderTarget) {
-  if (target) target.dispose();
-
+function setupRenderTarget() {
   const format = THREE.DepthFormat;
   const type = THREE.UnsignedShortType;
 
-  target = new THREE.WebGLRenderTarget(
+  let target = new THREE.WebGLRenderTarget(
     properties.textureResolution,
     properties.textureResolution
   );
-  target.texture.minFilter = THREE.NearestFilter;
-  target.texture.magFilter = THREE.NearestFilter;
+  target.texture.minFilter = THREE.LinearFilter;
+  target.texture.magFilter = THREE.LinearFilter;
   target.stencilBuffer = format === THREE.DepthStencilFormat ? true : false;
   target.depthTexture = new THREE.DepthTexture(
     properties.textureResolution,
@@ -229,12 +265,6 @@ function setupLLAPass(): SceneInfo {
 function setupBilateralFilteringScene(label: string): SceneInfo {
   let element = leftPaneElement(label);
   let scene = getNewPostProcessingScene(bilateralFilterMaterial);
-  return { ...scene, elem: element };
-}
-
-function setupPostScene(label: string): SceneInfo {
-  let element = leftPaneElement(label);
-  let scene = getNewPostProcessingScene(postMaterial);
   return { ...scene, elem: element };
 }
 
@@ -293,10 +323,13 @@ function renderFilterPass(
   pass: SceneInfo,
   source: THREE.WebGLRenderTarget,
   target: THREE.WebGLRenderTarget,
-  depthTexture: THREE.DepthTexture
+  depthTexture: THREE.DepthTexture,
+  sigmaS: number
 ) {
   // Set uniforms for pass
+  pass.material = bilateralFilterMaterial;
   pass.material.uniforms.tNormal.value = source.texture;
+  pass.material.uniforms.sigmaS.value = sigmaS;
   pass.material.uniforms.tDepth.value = depthTexture;
 
   // Render filterpass to target
@@ -309,10 +342,6 @@ function renderFilterPass(
 }
 
 function render(time: number) {
-  time *= 0.001;
-
-  // let scaleSpace: THREE.Texture[] = [];
-
   resizeRendererToDisplaySize(renderer);
 
   renderer.setScissorTest(false);
@@ -323,37 +352,65 @@ function render(time: number) {
   renderSceneToElement(scene);
 
   // Render scene with mesh to texture
-  renderer.setRenderTarget(firstRender);
+  renderer.setRenderTarget(rendertargets[0]);
   renderer.clear();
   renderer.render(scene.scene, scene.camera);
 
+  let depthTexture = rendertargets[0].depthTexture;
+
   // Render depth texture
-  depthTextureScene.material.uniforms.tDepth.value = firstRender.depthTexture;
+  depthTextureScene.material.uniforms.tDepth.value =
+    rendertargets[0].depthTexture;
   renderer.setRenderTarget(null);
   renderSceneToElement(depthTextureScene);
 
-  // scaleSpace.push(firstRender.texture.clone());
-  renderFilterPass(filterPass1, firstRender, targetA, firstRender.depthTexture);
-  // scaleSpace.push(targetA.texture.clone());
-  renderFilterPass(filterPass2, targetA, targetB, firstRender.depthTexture);
-  // scaleSpace.push(targetB.texture.clone());
-  // renderFilterPass(filterPass3, targetB, targetA, firstRender.depthTexture);
-  // scaleSpace.push(targetA.texture.clone());
-  // renderFilterPass(filterPass4, targetA, targetB, firstRender.depthTexture);
-  // scaleSpace.push(targetB.texture.clone());
+  let filterSigma = properties.bilateralFilter.SigmaS;
+  let increasePerPass = properties.bilateralFilter.SigmaSMultiplier;
+  renderFilterPass(
+    filterPass1,
+    rendertargets[0],
+    rendertargets[1],
+    depthTexture,
+    filterSigma
+  );
+  filterSigma = filterSigma * increasePerPass;
+  renderFilterPass(
+    filterPass2,
+    rendertargets[1],
+    rendertargets[2],
+    depthTexture,
+    filterSigma
+  );
+  filterSigma = filterSigma * increasePerPass;
+  renderFilterPass(
+    filterPass3,
+    rendertargets[2],
+    rendertargets[3],
+    depthTexture,
+    filterSigma
+  );
+  filterSigma = filterSigma * increasePerPass;
+  renderFilterPass(
+    filterPass4,
+    rendertargets[3],
+    rendertargets[4],
+    depthTexture,
+    filterSigma
+  );
 
-  LLAPass.material.uniforms.tScaleFine.value = firstRender.texture;
-  LLAPass.material.uniforms.tScaleCoarse.value = targetB.texture;
+  LLAPass.material.uniforms.scale0.value = rendertargets[0].texture;
+  LLAPass.material.uniforms.scale1.value = rendertargets[1].texture;
+  LLAPass.material.uniforms.scale2.value = rendertargets[2].texture;
+  LLAPass.material.uniforms.scale3.value = rendertargets[3].texture;
+  LLAPass.material.uniforms.scale4.value = rendertargets[4].texture;
+
+  renderSceneToElement(LLAPass);
+
   if (first) {
-    // console.log(scaleSpace);
-    // console.log(filterPass4.material.uniforms.tNormal.value);
-    // console.log(LLAPass.material.uniforms.tScaleCoarse.value);
-    // console.log(LLAPass.material.uniforms.tScaleFine.value);
   }
   first = false;
 
   renderSceneToElement(LLAPass);
-  // renderSceneToElement(postPass);
 
   stats.update();
   requestAnimationFrame(render);
@@ -367,9 +424,8 @@ const renderer = new THREE.WebGLRenderer({
 });
 const stats = Stats();
 document.body.appendChild(stats.dom);
-// await loadGLTFModel("./model.gltf");
 let mesh = await loadModel("./models/stanford-bunny.obj");
-console.log(mesh);
+
 let bilateralFilterMaterial = new THREE.ShaderMaterial({
   vertexShader: basicVertexShader,
   fragmentShader: bilateralFilter,
@@ -377,7 +433,7 @@ let bilateralFilterMaterial = new THREE.ShaderMaterial({
     tNormal: { value: null },
     tDepth: { value: null },
     sigmaR: { value: properties.bilateralFilter.SigmaR },
-    sigmaS: { value: properties.bilateralFilter.SigmaS },
+    sigmaS: { value: null },
   },
 });
 
@@ -385,9 +441,19 @@ let LLAMaterial = new THREE.ShaderMaterial({
   vertexShader: LLAVertexShader,
   fragmentShader: localLightAlignment,
   uniforms: {
-    tScaleFine: { value: null },
-    tScaleCoarse: { value: null },
-    sigma: { value: properties.localLightAlignment.Sigma },
+    scale0: { value: null },
+    scale1: { value: null },
+    scale2: { value: null },
+    scale3: { value: null },
+    scale4: { value: null },
+    sigma: {
+      value: [
+        properties.localLightAlignment.Sigma_0,
+        properties.localLightAlignment.Sigma_1,
+        properties.localLightAlignment.Sigma_2,
+        properties.localLightAlignment.Sigma_3,
+      ],
+    },
     gamma: { value: properties.localLightAlignment.Gamma },
     epsilon: { value: properties.localLightAlignment.Epsilon },
     lightDirection: {
@@ -396,41 +462,24 @@ let LLAMaterial = new THREE.ShaderMaterial({
   },
 });
 
-let postMaterial = new THREE.ShaderMaterial({
-  vertexShader: basicVertexShader,
-  fragmentShader: imageShader,
-  uniforms: {
-    image: { value: null },
-  },
-});
+let rendertargets: THREE.WebGLRenderTarget[] = [];
+for (let i = 0; i < 5; i++) {
+  rendertargets[i] = setupRenderTarget();
+}
 
-let targetA: THREE.WebGLRenderTarget,
-  targetB: THREE.WebGLRenderTarget,
-  firstRender: THREE.WebGLRenderTarget;
-
-firstRender = setupRenderTarget(firstRender);
-targetA = setupRenderTarget(targetA);
-targetB = setupRenderTarget(targetB);
-
-const scene = setupScene(rightPaneElement("Original Scene"), mesh);
+const scene = setupScene(rightPaneElement("Original Normals"), mesh);
 const depthTextureScene = setupDepthTextureScene();
-const filterPass1 = setupBilateralFilteringScene(
-  "bilateral filter: first pass"
-);
-const filterPass2 = setupBilateralFilteringScene(
-  "bilateral filter: second pass"
-);
-const filterPass3 = setupBilateralFilteringScene(
-  "bilateral filter: third pass"
-);
-const filterPass4 = setupBilateralFilteringScene(
-  "bilateral filter: fourth pass"
-);
+
+const filterPass1 = setupBilateralFilteringScene("Bilateral filter: 1st pass");
+const filterPass2 = setupBilateralFilteringScene("Bilateral filter: 2nd pass");
+const filterPass3 = setupBilateralFilteringScene("Bilateral filter: 3rd pass");
+const filterPass4 = setupBilateralFilteringScene("Bilateral filter: 4th pass");
+
 const LLAPass = setupLLAPass();
-// const postPass = setupPostScene("Imageshader");
 
 setupGUI();
 
 let first = true;
+// requestAnimationFrame(render);
 requestAnimationFrame(render);
 // const app = new App();

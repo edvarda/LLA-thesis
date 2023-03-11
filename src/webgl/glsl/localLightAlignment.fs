@@ -8,9 +8,14 @@
 
 // INPUTS 
 
-uniform highp sampler2D tScaleFine;
-uniform highp sampler2D tScaleCoarse;
-uniform float sigma;
+uniform highp sampler2D scale0;
+uniform highp sampler2D scale1;
+uniform highp sampler2D scale2;
+uniform highp sampler2D scale3;
+uniform highp sampler2D scale4;
+
+uniform float sigma[4];
+
 uniform float epsilon;
 uniform float gamma;
 varying vec2 vUv;
@@ -136,56 +141,22 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
   return Li * rotateLight(li, a, theta); // we return the rotated light direction
 }
 
-// ////////////////////////////////!
-// // LOCAL LIGHT ALIGNMENT - END /!
-// ////////////////////////////////!
-
-// float sigmaD(in int i) {
-//   // return (DIFF && S_[i] > 0. ? SD[i] : 0.);
-//   return 0.5;
-// }
-
-// float sigmaS(in int i) {
-//   return (SPEC && S_[i] > 0. ? SS[i] : 0.);
-// }
-
-// https://blog.selfshadow.com/publications/s2013-shading-course/hoffman/s2013_pbs_physics_math_notes.pdf
-// float spec(in vec3 l, in vec3 n, in vec3 v, float ap, float f0) {
-//   vec3 h = normalize(l + v); // half-vector
-//   float D = (ap + 2.) / (6.2832) * pow(dot(n, h), ap); // distribution function
-//   float G = 1. / dot(l, h); // approximate Cook-Torrance geometry function
-//   return D * G * f0;
-// }
-
-// void load() { // load global state of the shader (sigma values)
-//   SD = texelFetch(iChannel0, ivec2(2, 0), 0).xyz; // sigma for diffuse
-//   SS = texelFetch(iChannel0, ivec2(3, 0), 0).xyz; // sigma for specular
-
-//     // is diff/spec scale i being set right now?
-//   vec4 TDt = texelFetch(iChannel0, ivec2(4, 0), 0);
-//   vec4 TSt = texelFetch(iChannel0, ivec2(5, 0), 0);
-//   TD = bool[](TDt.x > 0., TDt.y > 0., TDt.z > 0., TDt.w > 0.);
-//   TS = bool[](TSt.x > 0., TSt.y > 0., TSt.z > 0.);
-//   LVL = TSt.w;
-// }
-
 void main() {
+  vec3 lightDirection = normalize(lightDir);
 
-  vec3 ld = normalize(lightDir);
+  vec3 n_0 = normalize(texture(scale0, vUv).xyz);
+  vec3 n_1 = normalize(texture(scale1, vUv).xyz);
+  vec3 n_2 = normalize(texture(scale2, vUv).xyz);
+  vec3 n_3 = normalize(texture(scale3, vUv).xyz);
+  vec3 n_4 = normalize(texture(scale4, vUv).xyz);
 
-  vec3 ni = texture(tScaleFine, vUv).xyz;
-  vec3 ni1 = texture(tScaleCoarse, vUv).xyz;
+  vec3 adjustedLightDirection;
 
-  if(ni == vec3(0) || ni1 == vec3(0)) {
-    gl_FragColor = vec4(BACKGROUNDCOLOR, 1.);
-    return;
-  }
+  adjustedLightDirection = adjustLight(n_3, n_4, lightDirection, sigma[3]);
+  adjustedLightDirection = adjustLight(n_2, n_3, adjustedLightDirection, sigma[2]);
+  adjustedLightDirection = adjustLight(n_1, n_2, adjustedLightDirection, sigma[1]);
+  adjustedLightDirection = adjustLight(n_0, n_1, adjustedLightDirection, sigma[0]);
 
-  ni = normalize(ni);
-  ni1 = normalize(ni1);
-  vec3 ld_adjusted = adjustLight(ni, ni1, ld, sigma);
-
-  vec3 n = ni;
-  vec3 col = ALBEDO * max(dot(n, ld_adjusted), 0.0);
+  vec3 col = ALBEDO * max(dot(n_0, adjustedLightDirection), 0.0);
   gl_FragColor = vec4(col, 1.);
 }
