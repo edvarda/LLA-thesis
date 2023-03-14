@@ -14,10 +14,10 @@ uniform highp sampler2D scale2;
 uniform highp sampler2D scale3;
 uniform highp sampler2D scale4;
 
-uniform float sigma[4];
+uniform highp float sigma[4];
 
-uniform float epsilon;
-uniform float gamma;
+uniform highp float epsilon;
+uniform highp float gamma;
 varying vec2 vUv;
 in vec3 lightDir;
 
@@ -140,7 +140,7 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
   float theta = si * W(lmbd1 * lmbd2) * acos(dot(li, gi));
   vec3 a = normalize(cross(li, gi));	 // rotation axis a
 
-  return Li * rotateLight(li, a, theta); // we return the rotated light direction
+  return Li * normalize(rotateLight(li, a, theta)); // we return the rotated light direction
 }
 
 void main() {

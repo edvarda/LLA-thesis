@@ -6,6 +6,7 @@
 
 // import View from "./webgl/View";
 import * as THREE from "three";
+import canvasToImage from "canvas-to-image";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -33,6 +34,7 @@ interface SceneInfo {
 
 const properties = {
   textureResolution: 512,
+  textureResolutionHigh: 1024,
   lightPosition: {
     x: 0,
     y: 1,
@@ -185,15 +187,24 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   return needResize;
 }
 
+function resizeRendererToDimensions(
+  renderer: THREE.WebGLRenderer,
+  width: number,
+  height: number
+) {
+  const canvas = renderer.domElement;
+  const needResize = canvas.width !== width || canvas.height !== height;
+  if (needResize) {
+    renderer.setSize(width, height, true);
+  }
+  return needResize;
+}
+
 function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
   const controls = new OrbitControls(camera, element);
 
-  const color = 0xffffff;
-  const intensity = 1;
-  // const axesHelper = new THREE.AxesHelper(1);
-  // scene.add(axesHelper);
   scene.add(camera);
   scene.add(mesh);
 
@@ -203,9 +214,6 @@ function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
 
 function getBoundingSphereRadius(mesh: THREE.Mesh): number {
   let boundingBox = new THREE.BoxHelper(mesh);
-  // console.log(
-  //   `boundingsphere radius: ${boundingBox.geometry.boundingSphere.radius}`
-  // );
   return boundingBox.geometry.boundingSphere.radius;
 }
 
@@ -222,20 +230,20 @@ function fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
   camera.updateProjectionMatrix();
 }
 
-function setupRenderTarget() {
+function setupRenderTarget(textureResolution: number) {
   const format = THREE.DepthFormat;
   const type = THREE.UnsignedShortType;
 
   let target = new THREE.WebGLRenderTarget(
-    properties.textureResolution,
-    properties.textureResolution
+    textureResolution,
+    textureResolution
   );
   target.texture.minFilter = THREE.LinearFilter;
   target.texture.magFilter = THREE.LinearFilter;
   target.stencilBuffer = format === THREE.DepthStencilFormat ? true : false;
   target.depthTexture = new THREE.DepthTexture(
-    properties.textureResolution,
-    properties.textureResolution
+    textureResolution,
+    textureResolution
   );
   target.depthTexture.format = format;
   target.depthTexture.type = type;
@@ -341,7 +349,7 @@ function renderFilterPass(
   renderSceneToElement(pass);
 }
 
-function render(time: number) {
+function render() {
   resizeRendererToDisplaySize(renderer);
 
   renderer.setScissorTest(false);
@@ -366,6 +374,7 @@ function render(time: number) {
 
   let filterSigma = properties.bilateralFilter.SigmaS;
   let increasePerPass = properties.bilateralFilter.SigmaSMultiplier;
+
   renderFilterPass(
     filterPass1,
     rendertargets[0],
@@ -406,14 +415,92 @@ function render(time: number) {
 
   renderSceneToElement(LLAPass);
 
-  if (first) {
-  }
-  first = false;
-
-  renderSceneToElement(LLAPass);
-
   stats.update();
   requestAnimationFrame(render);
+}
+
+function renderToImage() {
+  const imageRenderer = new THREE.WebGLRenderer({
+    alpha: true,
+    canvas: document.getElementById("imageRenderCanvas"),
+    preserveDrawingBuffer: true,
+  });
+
+  let highResRenderTargets: THREE.WebGLRenderTarget[] = [];
+  for (let i = 0; i < 5; i++) {
+    highResRenderTargets[i] = setupRenderTarget(
+      properties.textureResolutionHigh
+    );
+  }
+
+  imageRenderer.setRenderTarget(highResRenderTargets[0]);
+  imageRenderer.clear();
+  imageRenderer.render(scene.scene, scene.camera);
+
+  let depthTexture = highResRenderTargets[0].depthTexture;
+
+  // Render depth texture
+  depthTextureScene.material.uniforms.tDepth.value =
+    highResRenderTargets[0].depthTexture;
+
+  imageRenderer.setRenderTarget(null);
+  resizeRendererToDimensions(
+    imageRenderer,
+    properties.textureResolutionHigh,
+    properties.textureResolutionHigh
+  );
+  imageRenderer.render(depthTextureScene.scene, depthTextureScene.camera);
+
+  if (!first) {
+    console.log(highResRenderTargets[0].depthTexture);
+    first = true;
+    // canvasToImage(imageRenderer.domElement);
+  }
+
+  // requestAnimationFrame(renderToImage);
+
+  let filterSigma = properties.bilateralFilter.SigmaS;
+  let increasePerPass = properties.bilateralFilter.SigmaSMultiplier;
+
+  renderFilterPass(
+    filterPass1,
+    highResRenderTargets[0],
+    highResRenderTargets[1],
+    depthTexture,
+    filterSigma
+  );
+  filterSigma = filterSigma * increasePerPass;
+  renderFilterPass(
+    filterPass2,
+    highResRenderTargets[1],
+    highResRenderTargets[2],
+    depthTexture,
+    filterSigma
+  );
+  filterSigma = filterSigma * increasePerPass;
+  renderFilterPass(
+    filterPass3,
+    highResRenderTargets[2],
+    highResRenderTargets[3],
+    depthTexture,
+    filterSigma
+  );
+  filterSigma = filterSigma * increasePerPass;
+  renderFilterPass(
+    filterPass4,
+    highResRenderTargets[3],
+    highResRenderTargets[4],
+    depthTexture,
+    filterSigma
+  );
+
+  LLAPass.material.uniforms.scale0.value = highResRenderTargets[0].texture;
+  LLAPass.material.uniforms.scale1.value = highResRenderTargets[1].texture;
+  LLAPass.material.uniforms.scale2.value = highResRenderTargets[2].texture;
+  LLAPass.material.uniforms.scale3.value = highResRenderTargets[3].texture;
+  LLAPass.material.uniforms.scale4.value = highResRenderTargets[4].texture;
+
+  // resizeRendererToDisplaySize(imageRenderer);
 }
 
 // Script part below
@@ -422,6 +509,7 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   canvas: document.getElementById("canvas"),
 });
+
 const stats = Stats();
 document.body.appendChild(stats.dom);
 let mesh = await loadModel("./models/stanford-bunny.obj");
@@ -464,7 +552,7 @@ let LLAMaterial = new THREE.ShaderMaterial({
 
 let rendertargets: THREE.WebGLRenderTarget[] = [];
 for (let i = 0; i < 5; i++) {
-  rendertargets[i] = setupRenderTarget();
+  rendertargets[i] = setupRenderTarget(properties.textureResolution);
 }
 
 const scene = setupScene(rightPaneElement("Original Normals"), mesh);
@@ -478,8 +566,7 @@ const filterPass4 = setupBilateralFilteringScene("Bilateral filter: 4th pass");
 const LLAPass = setupLLAPass();
 
 setupGUI();
+let first = false;
 
-let first = true;
-// requestAnimationFrame(render);
+// requestAnimationFrame(renderToImage);
 requestAnimationFrame(render);
-// const app = new App();
