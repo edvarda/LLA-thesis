@@ -7,14 +7,17 @@ def clamp(num, min_value, max_value):
     return max(min(num, max_value), min_value)
 
 
-# They should probably not be jpegs, but TIFF:s or something else that is lossless.
-# shading_pre = dip.ImageRead('./shading_pre.jpg')
-# shading_post = dip.ImageRead('./shading_post.jpg')
-# depth = dip.ImageRead('./depth_texture.jpg')
-bunny = dip.ImageRead('./bunny.jpg')
+def asNpArraySum(image):
+    return np.sum(np.asarray(image))
 
-# images = [shading_pre, shading_post, depth]
-images = [bunny]
+
+prefix = "LLA_render"
+# They should probably not be jpegs, but TIFF:s or something else that is lossless. Or are my jpg:s lossless?
+shading_pre = dip.ImageRead(f"./{prefix}_pre_shading.jpg")
+shading_post = dip.ImageRead(f"./{prefix}_post_shading.jpg")
+depth = dip.ImageRead(f"./{prefix}_depth.jpg")
+
+images = [shading_pre, shading_post, depth]
 V = []
 E = []
 
@@ -28,14 +31,20 @@ for colorImage in images:
     V.append(v)
     E.append(e)
 
-# V_s, V_s_post, V_c = V
-# e_s, e_s_post, e_c = E
-
-# Then, here's my python interpretation of the formula for the congruence score:
+V_s, V_s_post, V_c = V
+e_s, e_s_post, e_c = E
 
 
 def congruenceScore(V_s, V_c, e_s, e_c):
-    return (e_c*(1-clamp((e_c-e_s), 0, 1))*abs(V_c*V_s))/e_c
+    numerator = e_c * \
+        np.subtract(1, np.clip(np.asarray(e_c-e_s), 0, 1)) * \
+        dip.Abs(dip.DotProduct(V_c, V_s))
+    denominator = e_c
+    return (asNpArraySum(numerator)/asNpArraySum(denominator))
 
-# scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
-# scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
+
+scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
+scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
+
+print(f"Score before: {scoreBefore}")
+print(f"Score after: {scoreAfter}")

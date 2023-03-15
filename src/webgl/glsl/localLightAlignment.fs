@@ -160,5 +160,5 @@ void main() {
   adjustedLightDirection = adjustLight(n_0, n_1, adjustedLightDirection, sigma[0]);
 
   vec3 col = ALBEDO * max(dot(n_0, adjustedLightDirection), 0.0);
-  gl_FragColor = vec4(col, 1.);
+  gl_FragColor = vec4(adjustedLightDirection, 1.);
 }

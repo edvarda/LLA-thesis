@@ -21,6 +21,8 @@ import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
 import localLightAlignment from "./webgl/glsl/localLightAlignment.fs";
 import normalVertexShader from "./webgl/glsl/normalVertexShader.vs";
 import normalFragmentShader from "./webgl/glsl/normalFragmentShader.fs";
+import lambertShadingSimple from "./webgl/glsl/lambertShadingSimple.fs";
+import lambertShadingLightDirectionTexture from "./webgl/glsl/lambertShadingLightDirectionTexture.fs";
 
 interface SceneInfo {
   scene: THREE.Scene;
@@ -33,8 +35,9 @@ interface SceneInfo {
 }
 
 const properties = {
-  textureResolution: 512,
-  textureResolutionHigh: 1024,
+  downloadPrompt: downloadHQRendersPrompt,
+  textureResolution: 256,
+  textureResolutionHigh: 2048,
   lightPosition: {
     x: 0,
     y: 1,
@@ -55,6 +58,18 @@ const properties = {
     Gamma: 3,
   },
 };
+
+function downloadHQRendersPrompt() {
+  let filenamePrefix = prompt(
+    "Please enter a prefix for the images",
+    "LLA_render"
+  );
+  if (filenamePrefix == null || filenamePrefix == "") {
+    return;
+  } else {
+    renderAndDownloadHQImages(filenamePrefix);
+  }
+}
 
 async function loadModel(url: string): Promise<THREE.Mesh> {
   const loader = new OBJLoader();
@@ -103,6 +118,7 @@ function onAllSigmaChange(newVal: number) {
 
 function setupGUI() {
   const gui = new GUI();
+  gui.add(properties, "downloadPrompt").name("Save high-res renders");
   const lightFolder = gui.addFolder("Light position");
   lightFolder.add(properties.lightPosition, "x", -1, 1).onChange(onGuiChange);
   lightFolder.add(properties.lightPosition, "y", -1, 1).onChange(onGuiChange);
@@ -200,16 +216,26 @@ function resizeRendererToDimensions(
   return needResize;
 }
 
-function setupScene(element: HTMLElement, mesh: THREE.Mesh) {
+function setupGeometryScene(mesh: THREE.Mesh) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
-  const controls = new OrbitControls(camera, element);
 
   scene.add(camera);
   scene.add(mesh);
 
   fitViewToModel(camera, mesh);
-  return { scene, camera, elem: element, mesh, controls };
+  return { scene, camera, mesh };
+}
+
+function setupPreShadedScene(element: HTMLElement) {
+  const sceneInfo = getNewPostProcessingScene(lambertMaterial);
+  const controls = new OrbitControls(scene.camera, element);
+  return { ...sceneInfo, controls, elem: element };
+}
+
+function setupPostShadedScene(element: HTMLElement) {
+  const sceneInfo = getNewPostProcessingScene(lambertMaterialPostLLA);
+  return { ...sceneInfo, elem: element };
 }
 
 function getBoundingSphereRadius(mesh: THREE.Mesh): number {
@@ -265,9 +291,8 @@ function setupDepthTextureScene(): SceneInfo {
 }
 
 function setupLLAPass(): SceneInfo {
-  let element = rightPaneElement("LLA Shader");
   let scene = getNewPostProcessingScene(LLAMaterial);
-  return { ...scene, elem: element };
+  return { ...scene };
 }
 
 function setupBilateralFilteringScene(label: string): SceneInfo {
@@ -328,6 +353,7 @@ function renderSceneToElement(sceneInfo: SceneInfo) {
 }
 
 function renderFilterPass(
+  renderer: THREE.WebGLRenderer,
   pass: SceneInfo,
   source: THREE.WebGLRenderTarget,
   target: THREE.WebGLRenderTarget,
@@ -346,7 +372,25 @@ function renderFilterPass(
   renderer.render(pass.scene, pass.camera);
 
   renderer.setRenderTarget(null);
-  renderSceneToElement(pass);
+}
+
+function renderLLAPass(
+  renderer: THREE.WebGLRenderer,
+  sceneInfo: SceneInfo,
+  target: THREE.WebGLRenderTarget,
+  scales: THREE.WebGLRenderTarget[]
+) {
+  let { scene, camera, material } = sceneInfo;
+  material = LLAMaterial;
+  material.uniforms.scale0.value = scales[0].texture;
+  material.uniforms.scale1.value = scales[1].texture;
+  material.uniforms.scale2.value = scales[2].texture;
+  material.uniforms.scale3.value = scales[3].texture;
+  material.uniforms.scale4.value = scales[4].texture;
+
+  renderer.setRenderTarget(target);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
 }
 
 function render() {
@@ -356,13 +400,15 @@ function render() {
   renderer.clear();
   renderer.setScissorTest(true);
 
-  // Render scene with mesh to canvas
-  renderSceneToElement(scene);
-
   // Render scene with mesh to texture
   renderer.setRenderTarget(rendertargets[0]);
   renderer.clear();
   renderer.render(scene.scene, scene.camera);
+  renderer.setRenderTarget(null);
+
+  // Render shaded scene from normals texture to canvas
+  preshading.material.uniforms.tNormal.value = rendertargets[0].texture;
+  renderSceneToElement(preshading);
 
   let depthTexture = rendertargets[0].depthTexture;
 
@@ -376,50 +422,59 @@ function render() {
   let increasePerPass = properties.bilateralFilter.SigmaSMultiplier;
 
   renderFilterPass(
+    renderer,
     filterPass1,
     rendertargets[0],
     rendertargets[1],
     depthTexture,
     filterSigma
   );
+  // original normals, not first pass
+  renderSceneToElement(filterPass1);
   filterSigma = filterSigma * increasePerPass;
   renderFilterPass(
+    renderer,
     filterPass2,
     rendertargets[1],
     rendertargets[2],
     depthTexture,
     filterSigma
   );
+  renderSceneToElement(filterPass2);
   filterSigma = filterSigma * increasePerPass;
   renderFilterPass(
+    renderer,
     filterPass3,
     rendertargets[2],
     rendertargets[3],
     depthTexture,
     filterSigma
   );
+  renderSceneToElement(filterPass3);
   filterSigma = filterSigma * increasePerPass;
   renderFilterPass(
+    renderer,
     filterPass4,
     rendertargets[3],
     rendertargets[4],
     depthTexture,
     filterSigma
   );
+  // This is not the last pass im rendering, its the second to last.
+  renderSceneToElement(filterPass4);
 
-  LLAPass.material.uniforms.scale0.value = rendertargets[0].texture;
-  LLAPass.material.uniforms.scale1.value = rendertargets[1].texture;
-  LLAPass.material.uniforms.scale2.value = rendertargets[2].texture;
-  LLAPass.material.uniforms.scale3.value = rendertargets[3].texture;
-  LLAPass.material.uniforms.scale4.value = rendertargets[4].texture;
+  let lightDirections = setupRenderTarget(properties.textureResolution);
+  renderLLAPass(renderer, LLAPass, lightDirections, rendertargets);
 
-  renderSceneToElement(LLAPass);
+  postshading.material.uniforms.tLightDirection.value = lightDirections.texture;
+  postshading.material.uniforms.tNormal.value = rendertargets[0].texture;
+  renderSceneToElement(postshading);
 
   stats.update();
   requestAnimationFrame(render);
 }
 
-function renderToImage() {
+function renderAndDownloadHQImages(filenamePrefix: string) {
   const imageRenderer = new THREE.WebGLRenderer({
     alpha: true,
     canvas: document.getElementById("imageRenderCanvas"),
@@ -437,32 +492,40 @@ function renderToImage() {
   imageRenderer.clear();
   imageRenderer.render(scene.scene, scene.camera);
 
-  let depthTexture = highResRenderTargets[0].depthTexture;
-
-  // Render depth texture
-  depthTextureScene.material.uniforms.tDepth.value =
-    highResRenderTargets[0].depthTexture;
-
   imageRenderer.setRenderTarget(null);
   resizeRendererToDimensions(
     imageRenderer,
     properties.textureResolutionHigh,
     properties.textureResolutionHigh
   );
+
+  // Render depth texture to canvas
+  depthTextureScene.material.uniforms.tDepth.value =
+    highResRenderTargets[0].depthTexture;
   imageRenderer.render(depthTextureScene.scene, depthTextureScene.camera);
+  // Save canvas to image and download
+  canvasToImage(imageRenderer.domElement, {
+    name: `${filenamePrefix}_depth`,
+    type: "jpg",
+    quality: 1,
+  });
 
-  if (!first) {
-    console.log(highResRenderTargets[0].depthTexture);
-    first = true;
-    // canvasToImage(imageRenderer.domElement);
-  }
-
-  // requestAnimationFrame(renderToImage);
+  // Render preshading to canvas
+  preshading.material.uniforms.tNormal.value = highResRenderTargets[0].texture;
+  imageRenderer.render(preshading.scene, preshading.camera);
+  canvasToImage(imageRenderer.domElement, {
+    name: `${filenamePrefix}_pre_shading`,
+    type: "jpg",
+    quality: 1,
+  });
 
   let filterSigma = properties.bilateralFilter.SigmaS;
   let increasePerPass = properties.bilateralFilter.SigmaSMultiplier;
 
+  let depthTexture = highResRenderTargets[0].depthTexture;
+
   renderFilterPass(
+    imageRenderer,
     filterPass1,
     highResRenderTargets[0],
     highResRenderTargets[1],
@@ -471,6 +534,7 @@ function renderToImage() {
   );
   filterSigma = filterSigma * increasePerPass;
   renderFilterPass(
+    imageRenderer,
     filterPass2,
     highResRenderTargets[1],
     highResRenderTargets[2],
@@ -479,6 +543,7 @@ function renderToImage() {
   );
   filterSigma = filterSigma * increasePerPass;
   renderFilterPass(
+    imageRenderer,
     filterPass3,
     highResRenderTargets[2],
     highResRenderTargets[3],
@@ -487,6 +552,7 @@ function renderToImage() {
   );
   filterSigma = filterSigma * increasePerPass;
   renderFilterPass(
+    imageRenderer,
     filterPass4,
     highResRenderTargets[3],
     highResRenderTargets[4],
@@ -500,7 +566,27 @@ function renderToImage() {
   LLAPass.material.uniforms.scale3.value = highResRenderTargets[3].texture;
   LLAPass.material.uniforms.scale4.value = highResRenderTargets[4].texture;
 
-  // resizeRendererToDisplaySize(imageRenderer);
+  let lightDirections = setupRenderTarget(properties.textureResolutionHigh);
+  renderLLAPass(imageRenderer, LLAPass, lightDirections, highResRenderTargets);
+
+  postshading.material.uniforms.tNormal.value = highResRenderTargets[0].texture;
+  postshading.material.uniforms.tLightDirection.value = lightDirections.texture;
+  imageRenderer.render(postshading.scene, postshading.camera);
+  canvasToImage(imageRenderer.domElement, {
+    name: `${filenamePrefix}_post_shading`,
+    type: "jpg",
+    quality: 1,
+  });
+
+  highResRenderTargets.forEach((target) => target.dispose());
+  lightDirections.dispose();
+  imageRenderer.dispose();
+  imageRenderer.clear();
+  // requestAnimationFrame(testRender);
+}
+
+function testRender() {
+  renderAndDownloadHQImages("test");
 }
 
 // Script part below
@@ -550,12 +636,44 @@ let LLAMaterial = new THREE.ShaderMaterial({
   },
 });
 
+let lambertMaterial = new THREE.ShaderMaterial({
+  vertexShader: basicVertexShader,
+  fragmentShader: lambertShadingSimple,
+  uniforms: {
+    lightDirection: {
+      value: properties.lightPosition,
+    },
+    tNormal: {
+      value: null,
+    },
+  },
+});
+
+let lambertMaterialPostLLA = new THREE.ShaderMaterial({
+  vertexShader: basicVertexShader,
+  fragmentShader: lambertShadingLightDirectionTexture,
+  uniforms: {
+    tLightDirection: {
+      value: null,
+    },
+    tNormal: {
+      value: null,
+    },
+  },
+});
+
 let rendertargets: THREE.WebGLRenderTarget[] = [];
 for (let i = 0; i < 5; i++) {
   rendertargets[i] = setupRenderTarget(properties.textureResolution);
 }
 
-const scene = setupScene(rightPaneElement("Original Normals"), mesh);
+const scene = setupGeometryScene(mesh);
+const preshading = setupPreShadedScene(
+  rightPaneElement("Lambertian shading w/ single light direction")
+);
+const postshading = setupPostShadedScene(
+  rightPaneElement("Lambertian shading w/ local light alignment")
+);
 const depthTextureScene = setupDepthTextureScene();
 
 const filterPass1 = setupBilateralFilteringScene("Bilateral filter: 1st pass");
