@@ -5,6 +5,7 @@
  */
 
 // import View from "./webgl/View";
+import { LocalLightAlignmentApp } from "./LLA";
 import * as THREE from "three";
 import canvasToImage from "canvas-to-image";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
@@ -14,15 +15,16 @@ import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import Stats from "three/examples/jsm/libs/stats.module";
 import GUI from "lil-gui";
 
-import basicVertexShader from "./webgl/glsl/basicVertexShader.vs";
-import LLAVertexShader from "./webgl/glsl/LLAVertexShader.vs";
-import depthShader from "./webgl/glsl/depthShader.fs";
-import bilateralFilter from "./webgl/glsl/bilateralFilter.fs";
-import localLightAlignment from "./webgl/glsl/localLightAlignment.fs";
-import normalVertexShader from "./webgl/glsl/normalVertexShader.vs";
-import normalFragmentShader from "./webgl/glsl/normalFragmentShader.fs";
-import lambertShadingSimple from "./webgl/glsl/lambertShadingSimple.fs";
-import lambertShadingLightDirectionTexture from "./webgl/glsl/lambertShadingLightDirectionTexture.fs";
+import basicVS from "./webgl/glsl/basicVertexShader.vs";
+import localLightAlignmentVS from "./webgl/glsl/localLightAlignment.vs";
+import normalsVS from "./webgl/glsl/normals.vs";
+
+import depthFS from "./webgl/glsl/depth.fs";
+import bilateralFilteringFS from "./webgl/glsl/bilateralFiltering.fs";
+import localLightAlignmentFS from "./webgl/glsl/localLightAlignment.fs";
+import normalsFS from "./webgl/glsl/normals.fs";
+import lambertShadingSimpleFS from "./webgl/glsl/lambertShadingSimple.fs";
+import lambertShadingLightDirectionTextureFS from "./webgl/glsl/lambertShadingLightDirectionTexture.fs";
 
 interface SceneInfo {
   scene: THREE.Scene;
@@ -71,6 +73,7 @@ function downloadHQRendersPrompt() {
   }
 }
 
+//Done
 async function loadModel(url: string): Promise<THREE.Mesh> {
   const loader = new OBJLoader();
   try {
@@ -79,8 +82,8 @@ async function loadModel(url: string): Promise<THREE.Mesh> {
     });
     let mesh = <THREE.Mesh>result.children[0];
     mesh.material = new THREE.ShaderMaterial({
-      vertexShader: normalVertexShader,
-      fragmentShader: normalFragmentShader,
+      vertexShader: normalsVS,
+      fragmentShader: normalsFS,
     });
     mesh.geometry.deleteAttribute("normal");
     mesh.geometry = mergeVertices(mesh.geometry);
@@ -91,7 +94,7 @@ async function loadModel(url: string): Promise<THREE.Mesh> {
     console.log(`Error caught during model loading: ${error}`);
   }
 }
-
+//Done
 function onGuiChange() {
   bilateralFilterMaterial.uniforms.sigmaS.value =
     properties.bilateralFilter.SigmaS;
@@ -107,7 +110,7 @@ function onGuiChange() {
   LLAMaterial.uniforms.epsilon.value = properties.localLightAlignment.Epsilon;
   LLAMaterial.uniforms.lightDirection.value = properties.lightPosition;
 }
-
+//Done
 function onAllSigmaChange(newVal: number) {
   properties.localLightAlignment.Sigma_0 = newVal;
   properties.localLightAlignment.Sigma_1 = newVal;
@@ -115,7 +118,7 @@ function onAllSigmaChange(newVal: number) {
   properties.localLightAlignment.Sigma_3 = newVal;
   onGuiChange();
 }
-
+//Done
 function setupGUI() {
   const gui = new GUI();
   gui.add(properties, "downloadPrompt").name("Save high-res renders");
@@ -163,13 +166,13 @@ function setupGUI() {
     .add(properties.localLightAlignment, "Gamma", 0.5, 6)
     .onChange(onGuiChange);
 }
-
+//Done
 function leftPaneElement(label: string): HTMLElement {
   const element = document.createElement("div");
   const renderFrame = document.createElement("div");
   const labelDiv = document.createElement("div");
   labelDiv.innerText = label;
-  element.className = "innerPanelSmall";
+  element.className = "viewFrame";
   renderFrame.className = "renderFrame";
   labelDiv.className = "label";
   element.appendChild(renderFrame);
@@ -177,21 +180,21 @@ function leftPaneElement(label: string): HTMLElement {
   document.getElementById("leftPane").appendChild(element);
   return renderFrame;
 }
-
+//Done
 function rightPaneElement(label: string): HTMLElement {
   const element = document.createElement("div");
   const renderFrame = document.createElement("div");
   const labelDiv = document.createElement("div");
   labelDiv.innerText = label;
-  element.className = "innerPanelLarge";
+  element.className = "viewFrame";
   renderFrame.className = "renderFrame";
   labelDiv.className = "label";
   element.appendChild(renderFrame);
   element.appendChild(labelDiv);
   document.getElementById("rightPane").appendChild(element);
-  return element;
+  return renderFrame;
 }
-
+//Done
 function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   const canvas = renderer.domElement;
   const width = canvas.clientWidth;
@@ -202,7 +205,7 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   }
   return needResize;
 }
-
+//Done
 function resizeRendererToDimensions(
   renderer: THREE.WebGLRenderer,
   width: number,
@@ -216,6 +219,7 @@ function resizeRendererToDimensions(
   return needResize;
 }
 
+//Done
 function setupGeometryScene(mesh: THREE.Mesh) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
@@ -227,22 +231,23 @@ function setupGeometryScene(mesh: THREE.Mesh) {
   return { scene, camera, mesh };
 }
 
+//Done
 function setupPreShadedScene(element: HTMLElement) {
   const sceneInfo = getNewPostProcessingScene(lambertMaterial);
   const controls = new OrbitControls(scene.camera, element);
   return { ...sceneInfo, controls, elem: element };
 }
-
+//Done
 function setupPostShadedScene(element: HTMLElement) {
   const sceneInfo = getNewPostProcessingScene(lambertMaterialPostLLA);
   return { ...sceneInfo, elem: element };
 }
-
+//Done
 function getBoundingSphereRadius(mesh: THREE.Mesh): number {
   let boundingBox = new THREE.BoxHelper(mesh);
   return boundingBox.geometry.boundingSphere.radius;
 }
-
+//Done
 function fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
   let height = 2 * getBoundingSphereRadius(mesh);
   let fov = 60;
@@ -256,6 +261,7 @@ function fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
   camera.updateProjectionMatrix();
 }
 
+//Done
 function setupRenderTarget(textureResolution: number) {
   const format = THREE.DepthFormat;
   const type = THREE.UnsignedShortType;
@@ -275,12 +281,12 @@ function setupRenderTarget(textureResolution: number) {
   target.depthTexture.type = type;
   return target;
 }
-
+//Done
 function setupDepthTextureScene(): SceneInfo {
   let element = leftPaneElement("Depth texture");
   let postMaterial = new THREE.ShaderMaterial({
-    vertexShader: basicVertexShader,
-    fragmentShader: depthShader,
+    vertexShader: basicVS,
+    fragmentShader: depthFS,
     uniforms: {
       tDiffuse: { value: null },
       tDepth: { value: null },
@@ -289,18 +295,19 @@ function setupDepthTextureScene(): SceneInfo {
   let scene = getNewPostProcessingScene(postMaterial);
   return { ...scene, elem: element };
 }
-
+//Done
 function setupLLAPass(): SceneInfo {
   let scene = getNewPostProcessingScene(LLAMaterial);
   return { ...scene };
 }
-
+//Done
 function setupBilateralFilteringScene(label: string): SceneInfo {
   let element = leftPaneElement(label);
   let scene = getNewPostProcessingScene(bilateralFilterMaterial);
   return { ...scene, elem: element };
 }
 
+//Done
 function getNewPostProcessingScene(material: THREE.ShaderMaterial): SceneInfo {
   let camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   let plane = new THREE.PlaneGeometry(2, 2);
@@ -315,6 +322,7 @@ function getNewPostProcessingScene(material: THREE.ShaderMaterial): SceneInfo {
   };
 }
 
+//Done
 // function onWindowResize(
 //   camera: THREE.OrthographicCamera,
 //   vpW: number,
@@ -401,11 +409,12 @@ function render() {
   renderer.setScissorTest(true);
 
   // Render scene with mesh to texture
+  console.log(rendertargets[0].texture);
   renderer.setRenderTarget(rendertargets[0]);
   renderer.clear();
   renderer.render(scene.scene, scene.camera);
   renderer.setRenderTarget(null);
-
+  console.log(rendertargets[0].texture);
   // Render shaded scene from normals texture to canvas
   preshading.material.uniforms.tNormal.value = rendertargets[0].texture;
   renderSceneToElement(preshading);
@@ -589,6 +598,9 @@ function testRender() {
   renderAndDownloadHQImages("test");
 }
 
+// let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj");
+// app.animate();
+
 // Script part below
 
 const renderer = new THREE.WebGLRenderer({
@@ -601,19 +613,19 @@ document.body.appendChild(stats.dom);
 let mesh = await loadModel("./models/stanford-bunny.obj");
 
 let bilateralFilterMaterial = new THREE.ShaderMaterial({
-  vertexShader: basicVertexShader,
-  fragmentShader: bilateralFilter,
+  vertexShader: basicVS,
+  fragmentShader: bilateralFilteringFS,
   uniforms: {
     tNormal: { value: null },
     tDepth: { value: null },
     sigmaR: { value: properties.bilateralFilter.SigmaR },
-    sigmaS: { value: null },
+    sigmaS: { value: properties.bilateralFilter.SigmaS },
   },
 });
 
 let LLAMaterial = new THREE.ShaderMaterial({
-  vertexShader: LLAVertexShader,
-  fragmentShader: localLightAlignment,
+  vertexShader: localLightAlignmentVS,
+  fragmentShader: localLightAlignmentFS,
   uniforms: {
     scale0: { value: null },
     scale1: { value: null },
@@ -637,8 +649,8 @@ let LLAMaterial = new THREE.ShaderMaterial({
 });
 
 let lambertMaterial = new THREE.ShaderMaterial({
-  vertexShader: basicVertexShader,
-  fragmentShader: lambertShadingSimple,
+  vertexShader: basicVS,
+  fragmentShader: lambertShadingSimpleFS,
   uniforms: {
     lightDirection: {
       value: properties.lightPosition,
@@ -650,8 +662,8 @@ let lambertMaterial = new THREE.ShaderMaterial({
 });
 
 let lambertMaterialPostLLA = new THREE.ShaderMaterial({
-  vertexShader: basicVertexShader,
-  fragmentShader: lambertShadingLightDirectionTexture,
+  vertexShader: basicVS,
+  fragmentShader: lambertShadingLightDirectionTextureFS,
   uniforms: {
     tLightDirection: {
       value: null,

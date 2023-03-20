@@ -2,7 +2,7 @@ body,
 html {
   margin: 0px;
   padding: 0px;
-  overflow: hidden;
+  /* overflow: hidden; */
   height: 100%;
   font-family: Arial, Helvetica, sans-serif;
   color: black;
@@ -11,7 +11,7 @@ html {
 main {
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 header {
   position: absolute;
@@ -69,7 +69,7 @@ p {
   width: 50%;
 }
 
-.innerPanelSmall {
+#leftPane .viewFrame {
   flex: 0 49%;
   height: 32%;
   margin-bottom: 2%; /* (100-32*3)/2 */
@@ -93,13 +93,13 @@ p {
   width: 50%;
 }
 
-.innerPanelLarge {
+#rightPane .viewFrame {
   height: 50%;
   border: 2px solid white;
   display: flex;
   flex-direction: column;
 }
 
-.innerPanelLarge + .innerPanelLarge {
+#rightPane .viewFrame + .viewFrame {
   margin-top: 2%;
 }
