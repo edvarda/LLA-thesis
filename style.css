@@ -1,0 +1,105 @@
+body,
+html {
+  margin: 0px;
+  padding: 0px;
+  /* overflow: hidden; */
+  height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
+  color: black;
+  line-height: 1;
+}
+main {
+  width: 100%;
+  height: 100%;
+  /* overflow: hidden; */
+}
+header {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+h1,
+p {
+  margin: 0;
+}
+
+#canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: -1;
+  background-color: mediumpurple;
+}
+
+#imageRenderCanvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+  background-color: transparent;
+  pointer-events: none;
+}
+
+.container {
+  display: flex;
+  height: 100%;
+  margin: 0.5em;
+}
+
+.outerPanel {
+  flex-grow: 1;
+  display: flex;
+  text-align: center;
+}
+
+.outerPanel + .outerPanel {
+  margin-left: 1%;
+}
+
+#leftPane {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  width: 50%;
+}
+
+#leftPane .viewFrame {
+  flex: 0 49%;
+  height: 32%;
+  margin-bottom: 2%; /* (100-32*3)/2 */
+  border: 2px solid white;
+  display: flex;
+  flex-direction: column;
+}
+
+.renderFrame {
+  height: 100%;
+}
+
+.label {
+  background-color: white;
+  padding: 0.5em 0;
+}
+
+#rightPane {
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+}
+
+#rightPane .viewFrame {
+  height: 50%;
+  border: 2px solid white;
+  display: flex;
+  flex-direction: column;
+}
+
+#rightPane .viewFrame + .viewFrame {
+  margin-top: 2%;
+}
