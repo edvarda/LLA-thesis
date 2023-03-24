@@ -337,12 +337,13 @@ export class LocalLightAlignmentApp {
 
     window.addEventListener("resize", this.onWindowResize);
 
-    requestAnimationFrame(this.render);
+    requestAnimationFrame(this.renderGeometry);
+
+    // this.controls.addEventListener("end", this.render);
   }
 
-  render = () => {
+  renderGeometry = () => {
     this.activeRenderer = this.realTimeRenderer;
-    let post = this.postProcessingScene;
 
     resizeRendererToDisplaySize(this.activeRenderer);
     this.activeRenderer.setScissorTest(false);
@@ -353,6 +354,24 @@ export class LocalLightAlignmentApp {
     this.renderToTarget(this.geometryPassTarget);
 
     this.renderToHTMLElement(this.htmlElements.originalNormals);
+
+    stats.update();
+    requestAnimationFrame(this.renderGeometry);
+  };
+
+  render = () => {
+    this.activeRenderer = this.realTimeRenderer;
+    let post = this.postProcessingScene;
+
+    resizeRendererToDisplaySize(this.activeRenderer);
+    this.activeRenderer.setScissorTest(false);
+    this.activeRenderer.clear();
+    this.activeRenderer.setScissorTest(true);
+
+    // this.activeScene = this.geometryScene;
+    // this.renderToTarget(this.geometryPassTarget);
+
+    // this.renderToHTMLElement(this.htmlElements.originalNormals);
 
     this.activeScene = this.postProcessingScene;
     post.prepareSimpleLambertShadingPass(this.geometryPassTarget.texture);
@@ -397,8 +416,8 @@ export class LocalLightAlignmentApp {
       this.localLightAlignmentTarget.texture
     );
     this.renderToHTMLElement(this.htmlElements.postShading);
-    stats.update();
-    requestAnimationFrame(this.render);
+    // stats.update();
+    // requestAnimationFrame(this.render);
   };
 
   renderImages(filenamePrefix: string) {
@@ -736,4 +755,4 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 
 const stats = Stats();
 document.body.appendChild(stats.dom);
-let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj");
+let app = new LocalLightAlignmentApp("./models/fertility.obj");
