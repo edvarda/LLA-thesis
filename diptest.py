@@ -1,3 +1,4 @@
+import glob
 import diplib as dip
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,30 +12,6 @@ def asNpArraySum(image):
     return np.sum(np.asarray(image))
 
 
-folder = "testrenders"
-prefix = "EMP3"
-# They should probably not be jpegs, but TIFF:s or something else that is lossless. Or are my jpg:s lossless?
-shading_pre = dip.ImageRead(f"./{folder}/{prefix}_pre_shading.jpg")
-shading_post = dip.ImageRead(f"./{folder}/{prefix}_post_shading.jpg")
-depth = dip.ImageRead(f"./{folder}/{prefix}_depth.jpg")
-
-V = []
-E = []
-
-for colorImage in [shading_pre, shading_post, depth]:
-    scalarImg = dip.ColorSpaceManager.Convert(colorImage, 'gray')
-    structureTensor = dip.StructureTensor(scalarImg)
-    eigenvalues, eigenvectors = dip.EigenDecomposition(structureTensor)
-    v = dip.LargestEigenvector(structureTensor)
-    eigenvalues = dip.Eigenvalues(structureTensor)
-    e = dip.SumTensorElements(eigenvalues)/2
-    V.append(v)
-    E.append(e)
-
-V_s, V_s_post, V_c = V
-e_s, e_s_post, e_c = E
-
-
 def congruenceScore(V_s, V_c, e_s, e_c):
     numerator = e_c * \
         np.subtract(1, np.clip(np.asarray(e_c-e_s), 0, 1)) * \
@@ -42,9 +19,43 @@ def congruenceScore(V_s, V_c, e_s, e_c):
     denominator = e_c
     return (asNpArraySum(numerator)/asNpArraySum(denominator))
 
+# They should probably not be jpegs, but TIFF:s or something else that is lossless. Or are my jpg:s lossless?
 
-scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
-scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
 
-print(f"Score before: {scoreBefore}")
-print(f"Score after: {scoreAfter}")
+def runTest(path):
+
+    shading_pre = dip.ImageRead(f"{path}_pre_shading.jpg")
+    shading_post = dip.ImageRead(f"{path}_post_shading.jpg")
+    depth = dip.ImageRead(f"{path}_depth.jpg")
+
+    V = []
+    E = []
+
+    for colorImage in [shading_pre, shading_post, depth]:
+        scalarImg = dip.ColorSpaceManager.Convert(colorImage, 'gray')
+        structureTensor = dip.StructureTensor(scalarImg)
+        eigenvalues, eigenvectors = dip.EigenDecomposition(structureTensor)
+        v = dip.LargestEigenvector(structureTensor)
+        eigenvalues = dip.Eigenvalues(structureTensor)
+        e = dip.SumTensorElements(eigenvalues)/2
+        V.append(v)
+        E.append(e)
+
+    V_s, V_s_post, V_c = V
+    e_s, e_s_post, e_c = E
+
+    scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
+    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
+
+    file = path.removeprefix("./testrenders/")
+    print(f"Tested file: {file}")
+    print(f"Score before: {scoreBefore}")
+    print(f"Score after: {scoreAfter}")
+
+
+path = "./testrenders/*_pre_shading.jpg"
+images = [x.removesuffix('_pre_shading.jpg') for x in glob.glob(path)]
+
+
+for image in images:
+    runTest(image)

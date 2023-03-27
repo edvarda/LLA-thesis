@@ -531,7 +531,7 @@ export class LocalLightAlignmentApp {
       this.properties.localLightAlignment.Sigma_3,
     ].toString();
 
-    return `LLA_${this.properties.textureResolutionHigh}_Gamma[${this.properties.localLightAlignment.Gamma}]_Sigma_${sigmastring}_${this.modelName}`;
+    return `LLA_${this.properties.textureResolutionHigh}_Gamma[${this.properties.localLightAlignment.Gamma}]_Sigma_[${sigmastring}]_${this.modelName}`;
   };
 
   setupHTLMElements() {
