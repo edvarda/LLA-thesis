@@ -20,14 +20,15 @@ import localLightAlignmentFS from "./webgl/glsl/localLightAlignment.fs";
 import normalsFS from "./webgl/glsl/normals.fs";
 import lambertShadingSimpleFS from "./webgl/glsl/lambertShadingSimple.fs";
 import lambertShadingLightDirectionTextureFS from "./webgl/glsl/lambertShadingLightDirectionTexture.fs";
+import { Group } from "three";
 
 class GeometryScene {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   normalMaterial: THREE.ShaderMaterial;
-  isModelLoaded: boolean = false;
+  // isModelLoaded: boolean = false;
 
-  constructor(modelUrl: string) {
+  constructor(model: THREE.Mesh) {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera();
     this.normalMaterial = new THREE.ShaderMaterial({
@@ -36,28 +37,7 @@ class GeometryScene {
     });
 
     this.scene.add(this.camera);
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    this.scene.add(cube);
-    this.loadModel(modelUrl);
-  }
-
-  loadModel(modelUrl: string) {
-    const loader = new OBJLoader();
-    loader.load(
-      modelUrl,
-      (object) => {
-        let mesh = <THREE.Mesh>object.children[0];
-        this.addModelToScene(mesh);
-      },
-      (xhr) => {
-        console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
-      },
-      (error) => {
-        console.log(`Error caught during model loading: ${error}`);
-      }
-    );
+    this.addModelToScene(model);
   }
 
   addModelToScene(mesh: THREE.Mesh) {
@@ -68,11 +48,11 @@ class GeometryScene {
     mesh.geometry.computeVertexNormals();
     this.scene.add(mesh);
     this.fitViewToModel(this.camera, mesh);
-    this.isModelLoaded = true;
+    // this.isModelLoaded = true;
   }
 
   fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
-    let height = 2 * this.getBoundingSphereRadius(mesh);
+    let height = 1.25 * this.getBoundingSphereRadius(mesh);
     let fov = 60;
     let dist = height / 2 / Math.tan((Math.PI * fov) / 360);
     camera.near = dist - height / 2;
@@ -258,7 +238,7 @@ export class LocalLightAlignmentApp {
         this.renderImages(filenamePrefix);
       }
     },
-    textureResolution: 512,
+    textureResolution: 1024,
     textureResolutionHigh: 2048,
     lightPosition: {
       x: 0,
@@ -266,9 +246,9 @@ export class LocalLightAlignmentApp {
       z: 0.5,
     },
     bilateralFilter: {
-      SigmaS: 1.5,
+      SigmaS: 2,
       SigmaSMultiplier: 1.7,
-      SigmaR: 0.01,
+      SigmaR: 0.001,
     },
     localLightAlignment: {
       Sigma_0: 0.5,
@@ -307,6 +287,7 @@ export class LocalLightAlignmentApp {
   activeRenderer: THREE.WebGLRenderer;
 
   modelName: string;
+  shouldRenderPostProcessing: boolean;
 
   constructor(modelUrl: string) {
     this.modelName = modelUrl.substring(
@@ -317,6 +298,7 @@ export class LocalLightAlignmentApp {
     this.realTimeRenderer = new THREE.WebGLRenderer({
       alpha: true,
       canvas: document.getElementById("canvas"),
+      preserveDrawingBuffer: true,
     });
 
     this.imageOutputRenderer = new THREE.WebGLRenderer({
@@ -325,29 +307,59 @@ export class LocalLightAlignmentApp {
       preserveDrawingBuffer: true,
     });
 
-    this.geometryScene = new GeometryScene(modelUrl);
     this.postProcessingScene = new PostProcessingScene(this.properties);
     this.initializeRenderTargets();
     this.setupHTLMElements();
-    this.controls = new OrbitControls(
-      this.geometryScene.camera,
-      this.htmlElements.preShading
-    );
     this.gui = this.setupGUI();
 
-    window.addEventListener("resize", this.onWindowResize);
-
-    requestAnimationFrame(this.renderGeometry);
-
-    // this.controls.addEventListener("end", this.render);
+    // window.addEventListener("resize", this.onWindowResize);
+    this.loadModel(modelUrl, (loadedObject: Group) => {
+      let mesh = <THREE.Mesh>loadedObject.children[0];
+      this.geometryScene = new GeometryScene(mesh);
+      this.controls = new OrbitControls(
+        this.geometryScene.camera,
+        this.htmlElements.preShading
+      );
+      this.controls.addEventListener(
+        "end",
+        () => (this.shouldRenderPostProcessing = true)
+      );
+      this.shouldRenderPostProcessing = true;
+      requestAnimationFrame(this.render);
+    });
   }
+
+  loadModel(modelUrl: string, onLoad: (group: Group) => void) {
+    const loader = new OBJLoader();
+    loader.load(
+      modelUrl,
+      onLoad,
+      (xhr) => {
+        console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
+      },
+      (error) => {
+        console.log(`Error caught during model loading: ${error}`);
+      }
+    );
+  }
+
+  render = () => {
+    this.renderGeometry();
+    stats.update();
+
+    if (this.shouldRenderPostProcessing) {
+      this.renderPostProcessing();
+      this.shouldRenderPostProcessing = false;
+    }
+    requestAnimationFrame(this.render);
+  };
 
   renderGeometry = () => {
     this.activeRenderer = this.realTimeRenderer;
-
+    let post = this.postProcessingScene;
     resizeRendererToDisplaySize(this.activeRenderer);
+
     this.activeRenderer.setScissorTest(false);
-    this.activeRenderer.clear();
     this.activeRenderer.setScissorTest(true);
 
     this.activeScene = this.geometryScene;
@@ -355,11 +367,12 @@ export class LocalLightAlignmentApp {
 
     this.renderToHTMLElement(this.htmlElements.originalNormals);
 
-    stats.update();
-    requestAnimationFrame(this.renderGeometry);
+    this.activeScene = this.postProcessingScene;
+    post.prepareSimpleLambertShadingPass(this.geometryPassTarget.texture);
+    this.renderToHTMLElement(this.htmlElements.preShading, this.controls);
   };
 
-  render = () => {
+  renderPostProcessing = () => {
     this.activeRenderer = this.realTimeRenderer;
     let post = this.postProcessingScene;
 
@@ -368,14 +381,7 @@ export class LocalLightAlignmentApp {
     this.activeRenderer.clear();
     this.activeRenderer.setScissorTest(true);
 
-    // this.activeScene = this.geometryScene;
-    // this.renderToTarget(this.geometryPassTarget);
-
-    // this.renderToHTMLElement(this.htmlElements.originalNormals);
-
     this.activeScene = this.postProcessingScene;
-    post.prepareSimpleLambertShadingPass(this.geometryPassTarget.texture);
-    this.renderToHTMLElement(this.htmlElements.preShading, this.controls);
 
     post.prepareDepthTexturePass(this.geometryPassTarget.depthTexture);
     this.renderToHTMLElement(this.htmlElements.depthTexture);
@@ -416,8 +422,6 @@ export class LocalLightAlignmentApp {
       this.localLightAlignmentTarget.texture
     );
     this.renderToHTMLElement(this.htmlElements.postShading);
-    // stats.update();
-    // requestAnimationFrame(this.render);
   };
 
   renderImages(filenamePrefix: string) {
@@ -622,6 +626,7 @@ export class LocalLightAlignmentApp {
       this.properties.localLightAlignment.Epsilon;
     this.postProcessingScene.localLightAlignmentMaterial.uniforms.lightDirection.value =
       this.properties.lightPosition;
+    this.shouldRenderPostProcessing = true;
   };
 
   setupGUI() {
@@ -696,7 +701,7 @@ export class LocalLightAlignmentApp {
   renderToTarget(target: THREE.WebGLRenderTarget) {
     let { scene, camera } = this.activeScene;
     this.activeRenderer.setRenderTarget(target);
-    this.activeRenderer.clear();
+    // this.activeRenderer.clear();
     this.activeRenderer.render(scene, camera);
     this.activeRenderer.setRenderTarget(null);
   }
@@ -755,4 +760,4 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 
 const stats = Stats();
 document.body.appendChild(stats.dom);
-let app = new LocalLightAlignmentApp("./models/fertility.obj");
+let app = new LocalLightAlignmentApp("./models/emperor.obj");
