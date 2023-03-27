@@ -7,7 +7,7 @@
   "author": "Edvard Ahlsén",
   "main": "webpack.config.js",
   "scripts": {
-    "dev": "webpack-dev-server",
+    "serve": "webpack serve",
     "build": "webpack --mode=development",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d web"

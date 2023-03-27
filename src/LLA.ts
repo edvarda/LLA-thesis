@@ -260,7 +260,6 @@ export class LocalLightAlignmentApp {
       let mesh = <THREE.Mesh>loadedObject.children[0];
       this.geometryScene = new GeometryScene(mesh);
 
-      console.table(this.properties);
       if (!!this.properties.automaticTest) {
         console.log("test");
         this.renderImages(this.getDefaultFilenamePrefix());
