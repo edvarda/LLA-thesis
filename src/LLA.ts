@@ -760,4 +760,4 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 
 const stats = Stats();
 document.body.appendChild(stats.dom);
-let app = new LocalLightAlignmentApp("./models/emperor.obj");
+let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj");

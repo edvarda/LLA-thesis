@@ -11,17 +11,17 @@ def asNpArraySum(image):
     return np.sum(np.asarray(image))
 
 
-prefix = "LLA_render"
+folder = "testrenders"
+prefix = "EMP3"
 # They should probably not be jpegs, but TIFF:s or something else that is lossless. Or are my jpg:s lossless?
-shading_pre = dip.ImageRead(f"./{prefix}_pre_shading.jpg")
-shading_post = dip.ImageRead(f"./{prefix}_post_shading.jpg")
-depth = dip.ImageRead(f"./{prefix}_depth.jpg")
+shading_pre = dip.ImageRead(f"./{folder}/{prefix}_pre_shading.jpg")
+shading_post = dip.ImageRead(f"./{folder}/{prefix}_post_shading.jpg")
+depth = dip.ImageRead(f"./{folder}/{prefix}_depth.jpg")
 
-images = [shading_pre, shading_post, depth]
 V = []
 E = []
 
-for colorImage in images:
+for colorImage in [shading_pre, shading_post, depth]:
     scalarImg = dip.ColorSpaceManager.Convert(colorImage, 'gray')
     structureTensor = dip.StructureTensor(scalarImg)
     eigenvalues, eigenvectors = dip.EigenDecomposition(structureTensor)
