@@ -202,66 +202,7 @@ class PostProcessingScene {
 }
 
 export class LocalLightAlignmentApp {
-  properties: {
-    downloadPrompt: Function;
-    textureResolution: number;
-    textureResolutionHigh: number;
-    lightPosition: {
-      x: number;
-      y: number;
-      z: number;
-    };
-    bilateralFilter: {
-      SigmaS: number;
-      SigmaSMultiplier: number;
-      SigmaR: number;
-    };
-    localLightAlignment: {
-      Sigma_0: number;
-      Sigma_1: number;
-      Sigma_2: number;
-      Sigma_3: number;
-      Sigma_all: number;
-      Epsilon: number;
-      Gamma: number;
-      numberOfScales: number;
-    };
-  } = {
-    downloadPrompt: () => {
-      let filenamePrefix = prompt(
-        "Please enter a prefix for the images",
-        this.getDefaultFilenamePrefix()
-      );
-      if (filenamePrefix == null || filenamePrefix == "") {
-        return;
-      } else {
-        this.renderImages(filenamePrefix);
-      }
-    },
-    textureResolution: 1024,
-    textureResolutionHigh: 2048,
-    lightPosition: {
-      x: 0,
-      y: 1,
-      z: 0.5,
-    },
-    bilateralFilter: {
-      SigmaS: 2,
-      SigmaSMultiplier: 1.7,
-      SigmaR: 0.001,
-    },
-    localLightAlignment: {
-      Sigma_0: 0.5,
-      Sigma_1: 0.5,
-      Sigma_2: 0.5,
-      Sigma_3: 0.5,
-      Sigma_all: 0.5,
-      Epsilon: 1e-6,
-      Gamma: 3,
-      numberOfScales: 4,
-    },
-  };
-
+  properties: Properties;
   geometryScene: GeometryScene;
   postProcessingScene: PostProcessingScene;
   activeScene: PostProcessingScene | GeometryScene;
@@ -289,7 +230,10 @@ export class LocalLightAlignmentApp {
   modelName: string;
   shouldRenderPostProcessing: boolean;
 
-  constructor(modelUrl: string) {
+  constructor(modelUrl: string, properties: Properties) {
+    this.properties = properties;
+    this.properties.downloadPrompt = this.downloadPrompt;
+
     this.modelName = modelUrl.substring(
       modelUrl.lastIndexOf("/") + 1,
       modelUrl.lastIndexOf(".")
@@ -310,22 +254,28 @@ export class LocalLightAlignmentApp {
     this.postProcessingScene = new PostProcessingScene(this.properties);
     this.initializeRenderTargets();
     this.setupHTLMElements();
-    this.gui = this.setupGUI();
 
     // window.addEventListener("resize", this.onWindowResize);
     this.loadModel(modelUrl, (loadedObject: Group) => {
       let mesh = <THREE.Mesh>loadedObject.children[0];
       this.geometryScene = new GeometryScene(mesh);
-      this.controls = new OrbitControls(
-        this.geometryScene.camera,
-        this.htmlElements.preShading
-      );
-      this.controls.addEventListener(
-        "end",
-        () => (this.shouldRenderPostProcessing = true)
-      );
-      this.shouldRenderPostProcessing = true;
-      requestAnimationFrame(this.render);
+
+      console.table(this.properties);
+      if (!!this.properties.automaticTest) {
+        console.log("test");
+        this.renderImages(this.getDefaultFilenamePrefix());
+      } else {
+        this.controls = new OrbitControls(
+          this.geometryScene.camera,
+          this.htmlElements.preShading
+        );
+        this.controls.addEventListener(
+          "end",
+          () => (this.shouldRenderPostProcessing = true)
+        );
+        this.shouldRenderPostProcessing = true;
+        requestAnimationFrame(this.render);
+      }
     });
   }
 
@@ -342,6 +292,18 @@ export class LocalLightAlignmentApp {
       }
     );
   }
+
+  downloadPrompt = () => {
+    let filenamePrefix = prompt(
+      "Please enter a prefix for the images",
+      this.getDefaultFilenamePrefix()
+    );
+    if (filenamePrefix == null || filenamePrefix == "") {
+      return;
+    } else {
+      this.renderImages(filenamePrefix);
+    }
+  };
 
   render = () => {
     this.renderGeometry();
@@ -629,67 +591,6 @@ export class LocalLightAlignmentApp {
     this.shouldRenderPostProcessing = true;
   };
 
-  setupGUI() {
-    let gui = new GUI();
-    gui.add(this.properties, "downloadPrompt").name("Save high-res renders");
-    const lightFolder = gui.addFolder("Light position");
-    lightFolder
-      .add(this.properties.lightPosition, "x", -1, 1)
-      .onChange(this.onGuiChange);
-    lightFolder
-      .add(this.properties.lightPosition, "y", -1, 1)
-      .onChange(this.onGuiChange);
-    lightFolder
-      .add(this.properties.lightPosition, "z", -1, 1)
-      .onChange(this.onGuiChange);
-    const filterFolder = gui.addFolder("Bilateral Filter");
-    filterFolder
-      .add(this.properties.bilateralFilter, "SigmaS", 0, 10)
-      .onChange(this.onGuiChange);
-    filterFolder
-      .add(this.properties.bilateralFilter, "SigmaSMultiplier", 1, 2.5)
-      .onChange(this.onGuiChange);
-    filterFolder
-      .add(this.properties.bilateralFilter, "SigmaR", 0, 0.5)
-      .onChange(this.onGuiChange);
-
-    filterFolder.open();
-    const llaFolder = gui.addFolder("Local Light Alignment");
-    llaFolder
-      .add(this.properties.localLightAlignment, "Sigma_0", 0, 1)
-      .onChange(this.onGuiChange)
-      .listen();
-    llaFolder
-      .add(this.properties.localLightAlignment, "Sigma_1", 0, 1)
-      .onChange(this.onGuiChange)
-      .listen();
-    llaFolder
-      .add(this.properties.localLightAlignment, "Sigma_2", 0, 1)
-      .onChange(this.onGuiChange)
-      .listen();
-    llaFolder
-      .add(this.properties.localLightAlignment, "Sigma_3", 0, 1)
-      .onChange(this.onGuiChange)
-      .listen();
-    llaFolder
-      .add(this.properties.localLightAlignment, "Sigma_all", 0, 1)
-      .onChange((newVal: number) => {
-        this.properties.localLightAlignment.Sigma_0 = newVal;
-        this.properties.localLightAlignment.Sigma_1 = newVal;
-        this.properties.localLightAlignment.Sigma_2 = newVal;
-        this.properties.localLightAlignment.Sigma_3 = newVal;
-        this.onGuiChange();
-      });
-
-    llaFolder
-      .add(this.properties.localLightAlignment, "Epsilon", 1e-10, 1e-4)
-      .onChange(this.onGuiChange);
-    llaFolder
-      .add(this.properties.localLightAlignment, "Gamma", 0.5, 6)
-      .onChange(this.onGuiChange);
-    return gui;
-  }
-
   onWindowResize(): void {
     const width = this.realTimeRenderer.domElement.clientWidth;
     const height = this.realTimeRenderer.domElement.clientHeight;
@@ -758,6 +659,161 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   return resizeRendererToDimensions(renderer, width, height);
 }
 
+function setupGUI(properties: any, onGuiChange: Function) {
+  let gui = new GUI();
+  gui.add(properties, "downloadPrompt").name("Save high-res renders");
+  const lightFolder = gui.addFolder("Light position");
+  lightFolder.add(properties.lightPosition, "x", -1, 1).onChange(onGuiChange);
+  lightFolder.add(properties.lightPosition, "y", -1, 1).onChange(onGuiChange);
+  lightFolder.add(properties.lightPosition, "z", -1, 1).onChange(onGuiChange);
+  const filterFolder = gui.addFolder("Bilateral Filter");
+  filterFolder
+    .add(properties.bilateralFilter, "SigmaS", 0, 10)
+    .onChange(onGuiChange);
+  filterFolder
+    .add(properties.bilateralFilter, "SigmaSMultiplier", 1, 2.5)
+    .onChange(onGuiChange);
+  filterFolder
+    .add(properties.bilateralFilter, "SigmaR", 0, 0.5)
+    .onChange(onGuiChange);
+
+  filterFolder.open();
+  const llaFolder = gui.addFolder("Local Light Alignment");
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_0", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_1", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_2", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_3", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_all", 0, 1)
+    .onChange((newVal: number) => {
+      properties.localLightAlignment.Sigma_0 = newVal;
+      properties.localLightAlignment.Sigma_1 = newVal;
+      properties.localLightAlignment.Sigma_2 = newVal;
+      properties.localLightAlignment.Sigma_3 = newVal;
+      onGuiChange();
+    });
+
+  llaFolder
+    .add(properties.localLightAlignment, "Epsilon", 1e-10, 1e-4)
+    .onChange(onGuiChange);
+  llaFolder
+    .add(properties.localLightAlignment, "Gamma", 0.5, 6)
+    .onChange(onGuiChange);
+  return gui;
+}
+
 const stats = Stats();
 document.body.appendChild(stats.dom);
-let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj");
+type Properties = {
+  automaticTest: boolean;
+  downloadPrompt?: Function;
+  textureResolution: number;
+  textureResolutionHigh: number;
+  lightPosition: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  bilateralFilter: {
+    SigmaS: number;
+    SigmaSMultiplier: number;
+    SigmaR: number;
+  };
+  localLightAlignment: {
+    Sigma_0: number;
+    Sigma_1: number;
+    Sigma_2: number;
+    Sigma_3: number;
+    Sigma_all: number;
+    Epsilon: number;
+    Gamma: number;
+    numberOfScales: number;
+  };
+};
+
+let properties: Properties = {
+  automaticTest: false,
+  textureResolution: 1024,
+  textureResolutionHigh: 2048,
+  lightPosition: {
+    x: 0,
+    y: 1,
+    z: 0.5,
+  },
+  bilateralFilter: {
+    SigmaS: 2,
+    SigmaSMultiplier: 1.7,
+    SigmaR: 0.001,
+  },
+  localLightAlignment: {
+    Sigma_0: 0.5,
+    Sigma_1: 0.5,
+    Sigma_2: 0.5,
+    Sigma_3: 0.5,
+    Sigma_all: 0.5,
+    Epsilon: 1e-6,
+    Gamma: 3,
+    numberOfScales: 4,
+  },
+};
+
+// let test1: Properties = { ...properties };
+// test1.automaticTest = false;
+// test1.localLightAlignment = {
+//   Sigma_0: 1,
+//   Sigma_1: 0,
+//   Sigma_2: 0,
+//   Sigma_3: 0,
+//   Sigma_all: 0,
+//   Epsilon: 1e-6,
+//   Gamma: 3,
+//   numberOfScales: 4,
+// };
+
+// let test2: Properties = { ...properties };
+// test2.automaticTest = true;
+// test2.localLightAlignment = {
+//   Sigma_0: 0,
+//   Sigma_1: 1,
+//   Sigma_2: 0,
+//   Sigma_3: 0,
+//   Sigma_all: 0,
+//   Epsilon: 1e-6,
+//   Gamma: 3,
+//   numberOfScales: 4,
+// };
+
+// let test3: Properties = { ...properties };
+// test3.automaticTest = true;
+// test3.localLightAlignment = {
+//   Sigma_0: 0,
+//   Sigma_1: 0,
+//   Sigma_2: 1,
+//   Sigma_3: 0,
+//   Sigma_all: 0,
+//   Epsilon: 1e-6,
+//   Gamma: 3,
+//   numberOfScales: 4,
+// };
+
+// let testarray = [test1, test2, test3];
+
+properties.automaticTest = false;
+let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj", properties);
+let gui = setupGUI(properties, app.onGuiChange);
+
+// testarray.forEach((test) => {
+//   new LocalLightAlignmentApp("./models/stanford-bunny.obj", test);
+// });
