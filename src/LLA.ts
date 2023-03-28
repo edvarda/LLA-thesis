@@ -26,7 +26,6 @@ class GeometryScene {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   normalMaterial: THREE.ShaderMaterial;
-  // isModelLoaded: boolean = false;
 
   constructor(model: THREE.Mesh) {
     this.scene = new THREE.Scene();
@@ -48,15 +47,14 @@ class GeometryScene {
     mesh.geometry.computeVertexNormals();
     this.scene.add(mesh);
     this.fitViewToModel(this.camera, mesh);
-    // this.isModelLoaded = true;
   }
 
   fitViewToModel(camera: THREE.PerspectiveCamera, mesh: THREE.Mesh) {
     let height = 1.25 * this.getBoundingSphereRadius(mesh);
     let fov = 60;
     let dist = height / 2 / Math.tan((Math.PI * fov) / 360);
-    camera.near = dist - height / 2;
-    camera.far = dist + height / 2;
+    camera.near = dist - (2 * height) / 3;
+    camera.far = dist + (2 * height) / 3;
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.fov = fov;
     camera.lookAt(0, 0, 0);
