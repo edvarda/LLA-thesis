@@ -6,6 +6,6 @@ uniform vec3 lightDirection;
 
 void main() {
   vec3 normal = texture2D(tNormal, vUv).xyz;
-  gl_FragColor.rgb = ALBEDO * max(dot(normal, lightDirection), 0.0);
+  gl_FragColor.rgb = ALBEDO * max(dot(normal, normalize(lightDirection)), 0.0);
   gl_FragColor.a = 1.0;
 }

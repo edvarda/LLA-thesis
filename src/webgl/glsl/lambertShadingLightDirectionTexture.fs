@@ -6,7 +6,7 @@ uniform sampler2D tLightDirection;
 
 void main() {
   vec3 normal = texture2D(tNormal, vUv).xyz;
-  vec3 lightDirection = texture2D(tLightDirection, vUv).xyz;
+  vec3 lightDirection = normalize(texture2D(tLightDirection, vUv).xyz);
   gl_FragColor.rgb = ALBEDO * max(dot(normal, lightDirection), 0.0);
   gl_FragColor.a = 1.0;
 }

@@ -528,7 +528,7 @@ export class LocalLightAlignmentApp {
       this.properties.localLightAlignment.Sigma_3,
     ].toString();
 
-    return `LLA_${this.properties.textureResolutionHigh}_Gamma[${this.properties.localLightAlignment.Gamma}]_Sigma_[${sigmastring}]_${this.modelName}`;
+    return `LLA_${this.properties.textureResolutionHigh}_Gamma[${this.properties.localLightAlignment.Gamma}]_Sigma_[${sigmastring}]_Epsilon_[${this.properties.localLightAlignment.Epsilon}]_${this.modelName}`;
   };
 
   setupHTLMElements() {
@@ -760,7 +760,7 @@ let properties: Properties = {
     Sigma_2: 0.5,
     Sigma_3: 0.5,
     Sigma_all: 0.5,
-    Epsilon: 1e-6,
+    Epsilon: 1e-5,
     Gamma: 3,
     numberOfScales: 4,
   },
