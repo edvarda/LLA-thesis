@@ -2,5 +2,6 @@
 
 in vec3 normalV;
 void main() {
-  gl_FragColor = vec4(vec3(normalV), 1.);
+  gl_FragColor.xyz = packNormalToRGB(normalize(normalV));
+  gl_FragColor.a = 1.;
 }

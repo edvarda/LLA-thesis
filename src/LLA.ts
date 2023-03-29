@@ -19,6 +19,7 @@ import bilateralFilteringFS from "./webgl/glsl/bilateralFiltering.fs";
 import localLightAlignmentFS from "./webgl/glsl/localLightAlignment.fs";
 import normalsFS from "./webgl/glsl/normals.fs";
 import lambertShadingSimpleFS from "./webgl/glsl/lambertShadingSimple.fs";
+import unpackNormalsFS from "./webgl/glsl/unpackNormals.fs";
 import lambertShadingLightDirectionTextureFS from "./webgl/glsl/lambertShadingLightDirectionTexture.fs";
 import { Group } from "three";
 
@@ -79,6 +80,7 @@ class PostProcessingScene {
   bilateralFilterMaterial: THREE.ShaderMaterial;
   localLightAlignmentMaterial: THREE.ShaderMaterial;
   depthTextureMaterial: THREE.ShaderMaterial;
+  unpackNormalsMaterial: THREE.ShaderMaterial;
 
   constructor(properties: any) {
     this.initializeMaterials(properties);
@@ -96,6 +98,15 @@ class PostProcessingScene {
         lightDirection: {
           value: properties.lightPosition,
         },
+        tNormal: {
+          value: null,
+        },
+      },
+    });
+    this.unpackNormalsMaterial = new THREE.ShaderMaterial({
+      vertexShader: basicVS,
+      fragmentShader: unpackNormalsFS,
+      uniforms: {
         tNormal: {
           value: null,
         },
@@ -153,6 +164,8 @@ class PostProcessingScene {
       uniforms: {
         tDiffuse: { value: null },
         tDepth: { value: null },
+        near: { value: null },
+        far: { value: null },
       },
     });
   }
@@ -160,6 +173,11 @@ class PostProcessingScene {
   prepareSimpleLambertShadingPass(normalsTexture: THREE.Texture) {
     this.lambertMaterialSimple.uniforms.tNormal.value = normalsTexture;
     this.plane.material = this.lambertMaterialSimple;
+  }
+
+  prepareUnpackedNormalsPass(normalsTexture: THREE.Texture) {
+    this.unpackNormalsMaterial.uniforms.tNormal.value = normalsTexture;
+    this.plane.material = this.unpackNormalsMaterial;
   }
 
   prepareLightDirectionMapLambertShadingPass(
@@ -193,8 +211,14 @@ class PostProcessingScene {
     }
     this.plane.material = this.localLightAlignmentMaterial;
   }
-  prepareDepthTexturePass(depthTexture: THREE.DepthTexture) {
+  prepareDepthTexturePass(
+    depthTexture: THREE.DepthTexture,
+    cameraNear: number,
+    cameraFar: number
+  ) {
     this.depthTextureMaterial.uniforms.tDepth.value = depthTexture;
+    this.depthTextureMaterial.uniforms.near.value = cameraNear;
+    this.depthTextureMaterial.uniforms.far.value = cameraFar;
     this.plane.material = this.depthTextureMaterial;
   }
 }
@@ -326,11 +350,12 @@ export class LocalLightAlignmentApp {
     this.activeScene = this.geometryScene;
     this.renderToTarget(this.geometryPassTarget);
 
-    this.renderToHTMLElement(this.htmlElements.originalNormals);
-
     this.activeScene = this.postProcessingScene;
     post.prepareSimpleLambertShadingPass(this.geometryPassTarget.texture);
     this.renderToHTMLElement(this.htmlElements.preShading, this.controls);
+
+    post.prepareUnpackedNormalsPass(this.geometryPassTarget.texture);
+    this.renderToHTMLElement(this.htmlElements.originalNormals);
   };
 
   renderPostProcessing = () => {
@@ -344,7 +369,13 @@ export class LocalLightAlignmentApp {
 
     this.activeScene = this.postProcessingScene;
 
-    post.prepareDepthTexturePass(this.geometryPassTarget.depthTexture);
+    console.log(`Depth tex:`);
+    console.log(this.geometryPassTarget.depthTexture);
+    post.prepareDepthTexturePass(
+      this.geometryPassTarget.depthTexture,
+      this.geometryScene.camera.near,
+      this.geometryScene.camera.far
+    );
     this.renderToHTMLElement(this.htmlElements.depthTexture);
 
     let filteringInputNormals = [
@@ -369,6 +400,7 @@ export class LocalLightAlignmentApp {
         this.geometryPassTarget.depthTexture
       );
       this.renderToTarget(this.filterPassTargets[i]);
+      post.prepareUnpackedNormalsPass(this.filterPassTargets[i].texture);
       this.renderToHTMLElement(this.htmlElements.filterPasses[i]);
     }
 
@@ -426,7 +458,11 @@ export class LocalLightAlignmentApp {
       quality: 1,
     });
 
-    post.prepareDepthTexturePass(highResGeometryPassTarget.depthTexture);
+    post.prepareDepthTexturePass(
+      highResGeometryPassTarget.depthTexture,
+      this.geometryScene.camera.near,
+      this.geometryScene.camera.far
+    );
     this.imageOutputRenderer.render(post.scene, post.camera);
     canvasToImage(this.imageOutputRenderer.domElement, {
       name: `${filenamePrefix}_depth`,
@@ -773,7 +809,7 @@ let properties: Properties = {
     Sigma_2: 0.5,
     Sigma_3: 0.5,
     Sigma_all: 0.5,
-    Epsilon: 1e-5,
+    Epsilon: 1e-6,
     Gamma: 3,
     numberOfScales: 4,
   },

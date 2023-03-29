@@ -7,6 +7,7 @@
 ///////////////////////////////////////////////////////////////////////////////!
 
 // INPUTS 
+#include <packing>
 
 uniform sampler2D scale0;
 uniform sampler2D scale1;
@@ -21,18 +22,7 @@ uniform float gamma;
 varying vec2 vUv;
 uniform vec3 lightDirection;
 
-#define SPEC false
-#define DIFF true
-
 #define HALFPI 1.57079632679489661923
-
-#define ALBEDO vec3(0.8) // Light gray
-#define BACKGROUNDCOLOR vec3(0.4,0.,0.) //Dark red
-
-#define BLUE vec3(0.0,0.0,1.0) 
-#define RED vec3(1.0,0.0,0.0) 
-#define GREEN vec3(0.0,1.0,0.0) 
-#define PURP vec3(1.0,0.0,1.0)
 
 //////////////////////////!
 // LOCAL LIGHT ALIGNMENT /!
@@ -89,21 +79,22 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
   float theta = si * W(lmbd1 * lmbd2) * acos(dot(li, gi));
   vec3 a = normalize(cross(li, gi));	 // rotation axis a
 
-  // return Li * normalize(rotateLight(li, a, theta)); // we return the rotated light direction
-  return normalize(Li * rotateLight(li, a, theta)); // we return the rotated light direction
-  // return Li * rotateLight(li, a, theta); // we return the rotated light direction
+  vec3 rotatedLight = Li * rotateLight(li, a, theta);
+  return normalize(rotatedLight); // we return the rotated light direction
+}
+
+vec3 getUnpackedNormal(sampler2D scaleTexture) {
+  return normalize(unpackRGBToNormal(texture(scaleTexture, vUv).xyz));
 }
 
 void main() {
-  // vec3 lightDirection = normalize(lightDir);
-  // vec3 lightDirection = normalize(lightDirection);
-  vec3 lightDirection = normalize(viewMatrix * vec4(lightDirection, 1.)).xyz;
+  vec3 lightDirection = normalize((viewMatrix * vec4(lightDirection, 1.)).xyz);
 
-  vec3 n_0 = normalize(texture(scale0, vUv).xyz);
-  vec3 n_1 = normalize(texture(scale1, vUv).xyz);
-  vec3 n_2 = normalize(texture(scale2, vUv).xyz);
-  vec3 n_3 = normalize(texture(scale3, vUv).xyz);
-  vec3 n_4 = normalize(texture(scale4, vUv).xyz);
+  vec3 n_0 = getUnpackedNormal(scale0);
+  vec3 n_1 = getUnpackedNormal(scale1);
+  vec3 n_2 = getUnpackedNormal(scale2);
+  vec3 n_3 = getUnpackedNormal(scale3);
+  vec3 n_4 = getUnpackedNormal(scale4);
 
   vec3 adjustedLightDirection;
 
@@ -112,5 +103,6 @@ void main() {
   adjustedLightDirection = adjustLight(n_1, n_2, adjustedLightDirection, sigma[1]);
   adjustedLightDirection = adjustLight(n_0, n_1, adjustedLightDirection, sigma[0]);
 
-  gl_FragColor = vec4(adjustedLightDirection, 1.);
+  gl_FragColor.rgb = packNormalToRGB(adjustedLightDirection);
+  gl_FragColor.a = 1.;
 }

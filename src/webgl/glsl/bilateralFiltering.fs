@@ -1,4 +1,5 @@
 #define F 0.619928135
+#include <packing>
 
 uniform highp sampler2D tNormal;
 uniform highp sampler2D tDepth;
@@ -12,7 +13,7 @@ vec3 getDepth(in vec2 position) {
 }
 
 vec3 getNormal(in vec2 position) {
-  return texture(tNormal, position).xyz;
+  return unpackRGBToNormal(texture(tNormal, position).xyz);
 }
 
 void main() {
@@ -50,6 +51,6 @@ void main() {
     }
   }
 
-  gl_FragColor.xyz = sumNormals / sumWeights;
+  gl_FragColor.xyz = packNormalToRGB(sumNormals / sumWeights);
   gl_FragColor.w = 1.0;
 }
