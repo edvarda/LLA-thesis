@@ -241,12 +241,14 @@ export class LocalLightAlignmentApp {
       alpha: true,
       canvas: document.getElementById("canvas"),
       preserveDrawingBuffer: true,
+      precision: "highp",
     });
 
     this.imageOutputRenderer = new THREE.WebGLRenderer({
       alpha: true,
       canvas: document.getElementById("imageRenderCanvas"),
       preserveDrawingBuffer: true,
+      precision: "highp",
     });
 
     this.postProcessingScene = new PostProcessingScene(this.properties);
@@ -504,19 +506,24 @@ export class LocalLightAlignmentApp {
     useDepthTexture: boolean = false
   ): THREE.WebGLRenderTarget {
     let aspectRatio = getAspectRatio();
+    let textureOptions = {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+    };
+
     let target = new THREE.WebGLRenderTarget(
       textureResolution,
-      textureResolution / aspectRatio
+      textureResolution / aspectRatio,
+      textureOptions
     );
 
-    target.texture.minFilter = THREE.LinearFilter;
-    target.texture.magFilter = THREE.LinearFilter;
     if (useDepthTexture) {
       target.depthTexture = new THREE.DepthTexture(
         textureResolution,
         textureResolution
       );
     }
+
     return target;
   }
 
@@ -535,8 +542,14 @@ export class LocalLightAlignmentApp {
     let leftPane = document.getElementById("leftPane");
     let rightPane = document.getElementById("rightPane");
     this.htmlElements = {
-      preShading: this.getHTMLFrameElement("Preshading", rightPane),
-      postShading: this.getHTMLFrameElement("Postshading", rightPane),
+      preShading: this.getHTMLFrameElement(
+        "Lambertian shading pre LLA",
+        rightPane
+      ),
+      postShading: this.getHTMLFrameElement(
+        "Lambertian shading post LLA",
+        rightPane
+      ),
       depthTexture: this.getHTMLFrameElement("Depth-texture", leftPane),
       originalNormals: this.getHTMLFrameElement("Original normals", leftPane),
       filterPasses: [],
