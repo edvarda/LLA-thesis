@@ -96,7 +96,8 @@ vec3 adjustLight(in vec3 ni, in vec3 ni1, in vec3 li, in float si) {
 
 void main() {
   // vec3 lightDirection = normalize(lightDir);
-  vec3 lightDirection = normalize(lightDirection);
+  // vec3 lightDirection = normalize(lightDirection);
+  vec3 lightDirection = normalize(viewMatrix * vec4(lightDirection, 1.)).xyz;
 
   vec3 n_0 = normalize(texture(scale0, vUv).xyz);
   vec3 n_1 = normalize(texture(scale1, vUv).xyz);
