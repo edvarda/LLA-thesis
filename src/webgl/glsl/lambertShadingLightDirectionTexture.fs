@@ -3,7 +3,7 @@ varying vec2 vUv;
 uniform sampler2D tNormal;
 uniform sampler2D tLightDirection;
 
-#define ALBEDO vec3(1.) // Light gray
+#define ALBEDO vec3(1.) // White
 
 vec3 getUnpackedLightDirection(sampler2D lightDirectionTexture) {
   vec3 unpackedLightDir = unpackRGBToNormal(texture2D(lightDirectionTexture, vUv).xyz);

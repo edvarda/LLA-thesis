@@ -4,7 +4,7 @@ varying vec2 vUv;
 uniform sampler2D tNormal;
 uniform vec3 lightDirection;
 
-#define ALBEDO vec3(1.) // Light gray
+#define ALBEDO vec3(1.) // White
 
 void main() {
   vec3 packedNormal = texture2D(tNormal, vUv).xyz;
