@@ -11,10 +11,11 @@
     "serve": "webpack serve",
     "build": "webpack --mode=development",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d web"
+    "deploy": "gh-pages -d web -r publictest"
   },
   "dependencies": {
     "canvas-to-image": "^2.2.5",
+    "jszip": "^3.10.1",
     "three": "0.140.0",
     "webpack": "5.72.1"
   },

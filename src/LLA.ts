@@ -255,6 +255,7 @@ export class LocalLightAlignmentApp {
   constructor(modelUrl: string, properties: Properties) {
     this.properties = properties;
     this.properties.downloadPrompt = this.downloadPrompt;
+    this.properties.runTests = this.runPredefinedTests;
 
     this.modelName = modelUrl.substring(
       modelUrl.lastIndexOf("/") + 1,
@@ -284,21 +285,16 @@ export class LocalLightAlignmentApp {
       let mesh = <THREE.Mesh>loadedObject.children[0];
       this.geometryScene = new GeometryScene(mesh);
 
-      if (!!this.properties.automaticTest) {
-        console.log("test");
-        this.renderImages(this.getDefaultFilenamePrefix());
-      } else {
-        this.controls = new OrbitControls(
-          this.geometryScene.camera,
-          this.htmlElements.preShading
-        );
-        this.controls.addEventListener(
-          "end",
-          () => (this.shouldRenderPostProcessing = true)
-        );
-        this.shouldRenderPostProcessing = true;
-        requestAnimationFrame(this.render);
-      }
+      this.controls = new OrbitControls(
+        this.geometryScene.camera,
+        this.htmlElements.preShading
+      );
+      this.controls.addEventListener(
+        "end",
+        () => (this.shouldRenderPostProcessing = true)
+      );
+      this.shouldRenderPostProcessing = true;
+      requestAnimationFrame(this.render);
     });
   }
 
@@ -315,6 +311,14 @@ export class LocalLightAlignmentApp {
       }
     );
   }
+  downloadImage = (data: any, filename: string = "untitled.tiff") => {
+    var a = document.createElement("a");
+    a.href = data;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    console.log("hello!");
+  };
 
   downloadPrompt = () => {
     let filenamePrefix = prompt(
@@ -324,7 +328,37 @@ export class LocalLightAlignmentApp {
     if (filenamePrefix == null || filenamePrefix == "") {
       return;
     } else {
+      resizeRendererToDimensions(
+        this.activeRenderer,
+        this.properties.textureResolutionHigh,
+        this.properties.textureResolutionHigh / getAspectRatio()
+      );
       this.renderImages(filenamePrefix);
+    }
+  };
+
+  runPredefinedTests = () => {
+    if (!!this.properties.tests) {
+      resizeRendererToDimensions(
+        this.imageOutputRenderer,
+        this.properties.textureResolutionHigh,
+        this.properties.textureResolutionHigh / getAspectRatio()
+      );
+      let temp = this.properties;
+      this.properties.tests.forEach((testProperties, i) => {
+        setTimeout(() => {
+          this.properties = testProperties;
+          this.initializeRenderTargets();
+          this.onGuiChange();
+          this.renderImages(`Auto_${this.getDefaultFilenamePrefix()}`);
+
+          if (i >= temp.tests.length - 1) {
+            console.log(temp.tests.length);
+            this.properties = temp;
+            alert(`Finished running ${this.properties.tests.length} tests`);
+          }
+        }, i * 2000);
+      });
     }
   };
 
@@ -369,8 +403,6 @@ export class LocalLightAlignmentApp {
 
     this.activeScene = this.postProcessingScene;
 
-    console.log(`Depth tex:`);
-    console.log(this.geometryPassTarget.depthTexture);
     post.prepareDepthTexturePass(
       this.geometryPassTarget.depthTexture,
       this.geometryScene.camera.near,
@@ -438,12 +470,6 @@ export class LocalLightAlignmentApp {
         this.properties.textureResolutionHigh
       );
     }
-
-    resizeRendererToDimensions(
-      this.activeRenderer,
-      this.properties.textureResolutionHigh,
-      this.properties.textureResolutionHigh / getAspectRatio()
-    );
 
     this.activeScene = this.geometryScene;
     this.renderToTarget(highResGeometryPassTarget);
@@ -518,10 +544,13 @@ export class LocalLightAlignmentApp {
   }
 
   initializeRenderTargets() {
+    if (this.geometryPassTarget) this.geometryPassTarget.dispose();
     this.geometryPassTarget = this.getNewRenderTarget(
       this.properties.textureResolution,
       true
     );
+    if (this.localLightAlignmentTarget)
+      this.localLightAlignmentTarget.dispose();
     this.localLightAlignmentTarget = this.getNewRenderTarget(
       this.properties.textureResolution
     );
@@ -531,6 +560,7 @@ export class LocalLightAlignmentApp {
       i < this.properties.localLightAlignment.numberOfScales;
       i++
     ) {
+      if (this.filterPassTargets[i]) this.filterPassTargets[i].dispose();
       this.filterPassTargets[i] = this.getNewRenderTarget(
         this.properties.textureResolution
       );
@@ -705,9 +735,11 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
   return resizeRendererToDimensions(renderer, width, height);
 }
 
-function setupGUI(properties: any, onGuiChange: Function) {
+function setupGUI(properties: Properties, onGuiChange: Function) {
   let gui = new GUI();
   gui.add(properties, "downloadPrompt").name("Save high-res renders");
+  if (properties.tests.length > 0)
+    gui.add(properties, "runTests").name("Run predefined tests");
   const lightFolder = gui.addFolder("Light position");
   lightFolder.add(properties.lightPosition, "x", -1, 1).onChange(onGuiChange);
   lightFolder.add(properties.lightPosition, "y", -1, 1).onChange(onGuiChange);
@@ -763,7 +795,8 @@ function setupGUI(properties: any, onGuiChange: Function) {
 const stats = Stats();
 document.body.appendChild(stats.dom);
 type Properties = {
-  automaticTest: boolean;
+  tests?: Properties[];
+  runTests?: Function;
   downloadPrompt?: Function;
   textureResolution: number;
   textureResolutionHigh: number;
@@ -789,8 +822,7 @@ type Properties = {
   };
 };
 
-let properties: Properties = {
-  automaticTest: false,
+const deafultProperties: Properties = {
   textureResolution: 1024,
   textureResolutionHigh: 2048,
   lightPosition: {
@@ -815,51 +847,86 @@ let properties: Properties = {
   },
 };
 
-// let test1: Properties = { ...properties };
-// test1.automaticTest = false;
-// test1.localLightAlignment = {
-//   Sigma_0: 1,
-//   Sigma_1: 0,
-//   Sigma_2: 0,
-//   Sigma_3: 0,
-//   Sigma_all: 0,
-//   Epsilon: 1e-6,
-//   Gamma: 3,
-//   numberOfScales: 4,
-// };
+let tests: Properties[] = [
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 1,
+      Sigma_1: 0,
+      Sigma_2: 0,
+      Sigma_3: 0,
+      Sigma_all: 0,
+    },
+  },
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 0,
+      Sigma_1: 1,
+      Sigma_2: 0,
+      Sigma_3: 0,
+      Sigma_all: 0,
+    },
+  },
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 0,
+      Sigma_1: 0,
+      Sigma_2: 1,
+      Sigma_3: 0,
+      Sigma_all: 0,
+    },
+  },
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 0,
+      Sigma_1: 0,
+      Sigma_2: 0,
+      Sigma_3: 1,
+      Sigma_all: 0,
+    },
+  },
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 1,
+      Sigma_1: 1,
+      Sigma_2: 0,
+      Sigma_3: 0,
+      Sigma_all: 0,
+    },
+  },
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 0,
+      Sigma_1: 0,
+      Sigma_2: 1,
+      Sigma_3: 1,
+      Sigma_all: 0,
+    },
+  },
+  {
+    ...deafultProperties,
+    localLightAlignment: {
+      ...deafultProperties.localLightAlignment,
+      Sigma_0: 1,
+      Sigma_1: 1,
+      Sigma_2: 1,
+      Sigma_3: 1,
+      Sigma_all: 1,
+    },
+  },
+];
 
-// let test2: Properties = { ...properties };
-// test2.automaticTest = true;
-// test2.localLightAlignment = {
-//   Sigma_0: 0,
-//   Sigma_1: 1,
-//   Sigma_2: 0,
-//   Sigma_3: 0,
-//   Sigma_all: 0,
-//   Epsilon: 1e-6,
-//   Gamma: 3,
-//   numberOfScales: 4,
-// };
-
-// let test3: Properties = { ...properties };
-// test3.automaticTest = true;
-// test3.localLightAlignment = {
-//   Sigma_0: 0,
-//   Sigma_1: 0,
-//   Sigma_2: 1,
-//   Sigma_3: 0,
-//   Sigma_all: 0,
-//   Epsilon: 1e-6,
-//   Gamma: 3,
-//   numberOfScales: 4,
-// };
-
-// let testarray = [test1, test2, test3];
-
-properties.automaticTest = false;
+let properties = { ...deafultProperties, tests };
 let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);
-
-// testarray.forEach((test) => {
-//   new LocalLightAlignmentApp("./models/stanford-bunny.obj", test);
-// });

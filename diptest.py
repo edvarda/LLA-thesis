@@ -48,14 +48,23 @@ def runTest(path):
     scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
 
     file = path.removeprefix("./testrenders/")
-    print(f"Tested file: {file}")
-    print(f"Score before: {scoreBefore}")
-    print(f"Score after: {scoreAfter}")
+    return dict(file=file, scoreBefore=scoreBefore, scoreAfter=scoreAfter)
 
 
 path = "./testrenders/*_pre_shading.jpg"
 images = [x.removesuffix('_pre_shading.jpg') for x in glob.glob(path)]
 
 
+def printResults(results):
+    print(f"Tested {len(results)} files")
+    for x in results:
+        print(f"File: {x.get('file')}")
+        print(
+            f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
+
+
+results = []
 for image in images:
-    runTest(image)
+    results.append(runTest(image))
+
+printResults(results)
