@@ -2,7 +2,8 @@
   "name": "local-light-alignment-thesis",
   "version": "1.0.0",
   "repository": {
-    "url": "git+https://https://github.com/edvarda/LLA-thesis.git"
+    "type": "git",
+    "url": "https://github.com/edvarda/LLA-thesis.git"
   },
   "author": "Edvard Ahlsén",
   "main": "webpack.config.js",
