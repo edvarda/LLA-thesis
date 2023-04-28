@@ -4,6 +4,8 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import canvasToImage from "canvas-to-image";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 import Stats from "three/examples/jsm/libs/stats.module";
 import GUI from "lil-gui";
@@ -333,7 +335,13 @@ export class LocalLightAlignmentApp {
         this.properties.textureResolutionHigh,
         this.properties.textureResolutionHigh / getAspectRatio()
       );
-      this.renderImages(filenamePrefix);
+      let zipFile = new JSZip();
+
+      this.renderImages(filenamePrefix, zipFile);
+
+      zipFile.generateAsync({ type: "blob" }).then(function (content) {
+        saveAs(content, "renders.zip");
+      });
     }
   };
 
@@ -345,6 +353,7 @@ export class LocalLightAlignmentApp {
         this.properties.textureResolutionHigh / getAspectRatio()
       );
       let temp = this.properties;
+      let zipFile = new JSZip();
       this.properties.tests.forEach((testProperties: Test, i) => {
         setTimeout(() => {
           this.properties = testProperties;
@@ -353,13 +362,19 @@ export class LocalLightAlignmentApp {
           this.renderImages(
             `[${i + 1}]_name[${
               testProperties.testName
-            }]_${this.getDefaultFilenamePrefix()}`
+            }]_${this.getDefaultFilenamePrefix()}`,
+            zipFile,
+            i > 0 ? false : true
           );
 
           if (i >= temp.tests.length - 1) {
             console.log(temp.tests.length);
             this.properties = temp;
-            alert(`Finished running ${this.properties.tests.length} tests`);
+            setTimeout(() => {
+              zipFile.generateAsync({ type: "blob" }).then(function (content) {
+                saveAs(content, "renders.zip");
+              });
+            }, 2000);
           }
         }, i * 2000);
       });
@@ -453,7 +468,17 @@ export class LocalLightAlignmentApp {
     this.renderToHTMLElement(this.htmlElements.postShading);
   };
 
-  renderImages(filenamePrefix: string) {
+  renderImages(
+    filenamePrefix: string,
+    zipFile: JSZip,
+    addPreAndDepthToZip: boolean = true
+  ) {
+    const addToZip = (imageData: string, filename: string) => {
+      zipFile.file(filename, imageData.substring(imageData.indexOf(",") + 1), {
+        base64: true,
+      });
+    };
+
     this.activeRenderer = this.imageOutputRenderer;
     let post = this.postProcessingScene;
 
@@ -482,11 +507,13 @@ export class LocalLightAlignmentApp {
 
     post.prepareSimpleLambertShadingPass(highResGeometryPassTarget.texture);
     this.imageOutputRenderer.render(post.scene, post.camera);
-    canvasToImage(this.imageOutputRenderer.domElement, {
-      name: `${filenamePrefix}_pre_shading`,
-      type: "jpg",
-      quality: 1,
-    });
+
+    if (addPreAndDepthToZip) {
+      addToZip(
+        this.imageOutputRenderer.domElement.toDataURL(),
+        `${filenamePrefix}_pre_shading.png`
+      );
+    }
 
     post.prepareDepthTexturePass(
       highResGeometryPassTarget.depthTexture,
@@ -494,11 +521,13 @@ export class LocalLightAlignmentApp {
       this.geometryScene.camera.far
     );
     this.imageOutputRenderer.render(post.scene, post.camera);
-    canvasToImage(this.imageOutputRenderer.domElement, {
-      name: `${filenamePrefix}_depth`,
-      type: "jpg",
-      quality: 1,
-    });
+
+    if (addPreAndDepthToZip) {
+      addToZip(
+        this.imageOutputRenderer.domElement.toDataURL(),
+        `${filenamePrefix}_depth.png`
+      );
+    }
 
     let filteringInputNormals = [
       highResGeometryPassTarget.texture,
@@ -535,11 +564,11 @@ export class LocalLightAlignmentApp {
       highResLocalLightAlignmentTarget.texture
     );
     this.imageOutputRenderer.render(post.scene, post.camera);
-    canvasToImage(this.imageOutputRenderer.domElement, {
-      name: `${filenamePrefix}_post_shading`,
-      type: "jpg",
-      quality: 1,
-    });
+
+    addToZip(
+      this.imageOutputRenderer.domElement.toDataURL(),
+      `${filenamePrefix}_post_shading.png`
+    );
 
     this.imageOutputRenderer.clear();
     highResFilterPassTargets.forEach((target) => target.dispose());
