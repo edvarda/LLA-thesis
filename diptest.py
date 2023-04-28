@@ -48,23 +48,41 @@ def runTest(path):
     scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
 
     file = path.removeprefix("./testrenders/")
-    return dict(file=file, scoreBefore=scoreBefore, scoreAfter=scoreAfter)
-
-
-path = "./testrenders/*_pre_shading.jpg"
-images = [x.removesuffix('_pre_shading.jpg') for x in glob.glob(path)]
+    start = file.find("_Sigma_")+7
+    end = file.find("_Epsilon_")
+    sigmaString = file[start:end]
+    start = file.find("name")+4
+    end = file.find("_LLA_")
+    nameString = file[start:end]
+    return dict(file=file, scoreBefore=scoreBefore, scoreAfter=scoreAfter, diff=(scoreAfter-scoreBefore), sigma=sigmaString, name=nameString)
 
 
 def printResults(results):
     print(f"Tested {len(results)} files")
     for x in results:
-        print(f"File: {x.get('file')}")
+        print(f"Sigma: {x.get('sigma')}")
         print(
             f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
 
 
-results = []
-for image in images:
-    results.append(runTest(image))
+def plotResults(results):
+    ypoints = np.array([result.get("diff") for result in results])
+    xpoints = np.array([result.get("name") for result in results])
+    plt.bar(xpoints, ypoints)
+    plt.xlabel("Scale enhanced")
+    plt.ylabel("Difference in congruence score after LLA pass")
+    plt.xticks(rotation=70)
+    plt.tight_layout()
+    plt.show(block=True)
 
-printResults(results)
+
+folderpath = "./testrenders/*"
+folders = [x for x in glob.glob(folderpath)]
+for folder in folders:
+    print(f"Running tests in: {folder}")
+    images = [x.removesuffix('_pre_shading.jpg')
+              for x in glob.glob(f"{folder}/*_pre_shading.jpg")]
+    results = [runTest(image) for image in images]
+    results.sort(key=lambda result: result.get("file"))
+    printResults(results)
+    plotResults(results)

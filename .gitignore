@@ -1,7 +1,8 @@
 .DS_Store
 
-assets/
+web/assets/
 testrenders/
+test/
 web/js
 
 # Default Node gitignore from https://github.com/github/gitignore

@@ -224,7 +224,7 @@ class PostProcessingScene {
 }
 
 export class LocalLightAlignmentApp {
-  properties: Properties;
+  properties: Properties | Test;
   geometryScene: GeometryScene;
   postProcessingScene: PostProcessingScene;
   activeScene: PostProcessingScene | GeometryScene;
@@ -345,12 +345,16 @@ export class LocalLightAlignmentApp {
         this.properties.textureResolutionHigh / getAspectRatio()
       );
       let temp = this.properties;
-      this.properties.tests.forEach((testProperties, i) => {
+      this.properties.tests.forEach((testProperties: Test, i) => {
         setTimeout(() => {
           this.properties = testProperties;
           this.initializeRenderTargets();
           this.onGuiChange();
-          this.renderImages(`Auto_${this.getDefaultFilenamePrefix()}`);
+          this.renderImages(
+            `[${i + 1}]_name[${
+              testProperties.testName
+            }]_${this.getDefaultFilenamePrefix()}`
+          );
 
           if (i >= temp.tests.length - 1) {
             console.log(temp.tests.length);
@@ -795,7 +799,7 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
 const stats = Stats();
 document.body.appendChild(stats.dom);
 type Properties = {
-  tests?: Properties[];
+  tests?: Test[];
   runTests?: Function;
   downloadPrompt?: Function;
   textureResolution: number;
@@ -822,16 +826,18 @@ type Properties = {
   };
 };
 
+type Test = Properties & { testName: string };
+
 const deafultProperties: Properties = {
-  textureResolution: 1024,
-  textureResolutionHigh: 2048,
+  textureResolution: 512,
+  textureResolutionHigh: 1024,
   lightPosition: {
     x: 0,
     y: 1,
     z: 0.5,
   },
   bilateralFilter: {
-    SigmaS: 2,
+    SigmaS: 4,
     SigmaSMultiplier: 1.7,
     SigmaR: 0.001,
   },
@@ -847,12 +853,13 @@ const deafultProperties: Properties = {
   },
 };
 
-let tests: Properties[] = [
+let tests: Test[] = [
   {
     ...deafultProperties,
+    testName: "Scale_1",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
-      Sigma_0: 1,
+      Sigma_0: 0.5,
       Sigma_1: 0,
       Sigma_2: 0,
       Sigma_3: 0,
@@ -861,10 +868,11 @@ let tests: Properties[] = [
   },
   {
     ...deafultProperties,
+    testName: "Scale_2",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
       Sigma_0: 0,
-      Sigma_1: 1,
+      Sigma_1: 0.5,
       Sigma_2: 0,
       Sigma_3: 0,
       Sigma_all: 0,
@@ -872,32 +880,35 @@ let tests: Properties[] = [
   },
   {
     ...deafultProperties,
+    testName: "Scale_3",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
       Sigma_0: 0,
       Sigma_1: 0,
-      Sigma_2: 1,
+      Sigma_2: 0.5,
       Sigma_3: 0,
       Sigma_all: 0,
     },
   },
   {
     ...deafultProperties,
+    testName: "Scale_4",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
       Sigma_0: 0,
       Sigma_1: 0,
       Sigma_2: 0,
-      Sigma_3: 1,
+      Sigma_3: 0.5,
       Sigma_all: 0,
     },
   },
   {
     ...deafultProperties,
+    testName: "Scale_1_2",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
-      Sigma_0: 1,
-      Sigma_1: 1,
+      Sigma_0: 0.5,
+      Sigma_1: 0.5,
       Sigma_2: 0,
       Sigma_3: 0,
       Sigma_all: 0,
@@ -905,28 +916,30 @@ let tests: Properties[] = [
   },
   {
     ...deafultProperties,
+    testName: "Scale_3_4",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
       Sigma_0: 0,
       Sigma_1: 0,
-      Sigma_2: 1,
-      Sigma_3: 1,
+      Sigma_2: 0.5,
+      Sigma_3: 0.5,
       Sigma_all: 0,
     },
   },
   {
     ...deafultProperties,
+    testName: "Scale_all",
     localLightAlignment: {
       ...deafultProperties.localLightAlignment,
-      Sigma_0: 1,
-      Sigma_1: 1,
-      Sigma_2: 1,
-      Sigma_3: 1,
-      Sigma_all: 1,
+      Sigma_0: 0.5,
+      Sigma_1: 0.5,
+      Sigma_2: 0.5,
+      Sigma_3: 0.5,
+      Sigma_all: 0.5,
     },
   },
 ];
 
-let properties = { ...deafultProperties, tests };
-let app = new LocalLightAlignmentApp("./models/stanford-bunny.obj", properties);
+let properties: Properties = { ...deafultProperties, tests };
+let app = new LocalLightAlignmentApp("./assets/emperor.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);
