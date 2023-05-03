@@ -299,8 +299,6 @@ export class LocalLightAlignmentApp {
       }, 50);
     });
 
-    document.onscroll = (event) => {};
-
     this.loadModel(modelUrl, (loadedObject: Group) => {
       let mesh = <THREE.Mesh>loadedObject.children[0];
       this.geometryScene = new GeometryScene(mesh);
@@ -449,6 +447,8 @@ export class LocalLightAlignmentApp {
       this.filterPassTargets[0].texture,
       this.filterPassTargets[1].texture,
       this.filterPassTargets[2].texture,
+      this.filterPassTargets[3].texture,
+      this.filterPassTargets[4].texture,
     ];
 
     for (
@@ -549,6 +549,8 @@ export class LocalLightAlignmentApp {
       highResFilterPassTargets[0].texture,
       highResFilterPassTargets[1].texture,
       highResFilterPassTargets[2].texture,
+      highResFilterPassTargets[3].texture,
+      highResFilterPassTargets[4].texture,
     ];
 
     for (
