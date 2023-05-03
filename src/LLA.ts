@@ -24,6 +24,11 @@ import unpackNormalsFS from "./webgl/glsl/unpackNormals.fs";
 import lambertShadingLightDirectionTextureFS from "./webgl/glsl/lambertShadingLightDirectionTexture.fs";
 import { Group } from "three";
 
+// Properties and tests
+
+import { Properties, Test, deafultProperties } from "./properties";
+import sigmaTests from "./sigmaTests";
+
 class GeometryScene {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
@@ -144,12 +149,16 @@ class PostProcessingScene {
         scale2: { value: null },
         scale3: { value: null },
         scale4: { value: null },
+        scale5: { value: null },
+        scale6: { value: null },
         sigma: {
           value: [
             properties.localLightAlignment.Sigma_0,
             properties.localLightAlignment.Sigma_1,
             properties.localLightAlignment.Sigma_2,
             properties.localLightAlignment.Sigma_3,
+            properties.localLightAlignment.Sigma_4,
+            properties.localLightAlignment.Sigma_5,
           ],
         },
         gamma: { value: properties.localLightAlignment.Gamma },
@@ -252,6 +261,7 @@ export class LocalLightAlignmentApp {
 
   modelName: string;
   shouldRenderPostProcessing: boolean;
+  scrollEndTimer: NodeJS.Timeout;
 
   constructor(modelUrl: string, properties: Properties) {
     this.properties = properties;
@@ -282,6 +292,15 @@ export class LocalLightAlignmentApp {
     this.setupHTLMElements();
 
     window.addEventListener("resize", this.onWindowResize);
+    document.addEventListener("scroll", () => {
+      clearTimeout(this.scrollEndTimer);
+      this.scrollEndTimer = setTimeout(() => {
+        this.shouldRenderPostProcessing = true;
+      }, 50);
+    });
+
+    document.onscroll = (event) => {};
+
     this.loadModel(modelUrl, (loadedObject: Group) => {
       let mesh = <THREE.Mesh>loadedObject.children[0];
       this.geometryScene = new GeometryScene(mesh);
@@ -336,16 +355,22 @@ export class LocalLightAlignmentApp {
     }
   };
 
-  runPredefinedTests = () => {
-    if (!!this.properties.tests) {
+  setupTests = () => {
+    this.properties.testSuites.forEach((testSuite) => {
+      testSuite.runTestSuite = () => this.runPredefinedTests(testSuite.tests);
+    });
+  };
+
+  runPredefinedTests = (tests: Test[]) => {
+    if (!!tests) {
       resizeRendererToDimensions(
         this.imageOutputRenderer,
         this.properties.textureResolutionHigh,
         this.properties.textureResolutionHigh / getAspectRatio()
       );
-      let temp = this.properties;
+      let savedProperties = this.properties;
       let zipFile = new JSZip();
-      this.properties.tests.forEach((testProperties: Test, i) => {
+      tests.forEach((testProperties: Test, i) => {
         setTimeout(() => {
           this.properties = testProperties;
           this.initializeRenderTargets();
@@ -358,9 +383,8 @@ export class LocalLightAlignmentApp {
             i > 0 ? false : true
           );
 
-          if (i >= temp.tests.length - 1) {
-            console.log(temp.tests.length);
-            this.properties = temp;
+          if (i >= tests.length - 1) {
+            this.properties = savedProperties;
             setTimeout(() => {
               zipFile.generateAsync({ type: "blob" }).then(function (content) {
                 saveAs(content, "testResults.zip");
@@ -681,6 +705,8 @@ export class LocalLightAlignmentApp {
         this.properties.localLightAlignment.Sigma_1,
         this.properties.localLightAlignment.Sigma_2,
         this.properties.localLightAlignment.Sigma_3,
+        this.properties.localLightAlignment.Sigma_4,
+        this.properties.localLightAlignment.Sigma_5,
       ];
     this.postProcessingScene.localLightAlignmentMaterial.uniforms.gamma.value =
       this.properties.localLightAlignment.Gamma;
@@ -764,8 +790,12 @@ function resizeRendererToDisplaySize(renderer: THREE.WebGLRenderer) {
 function setupGUI(properties: Properties, onGuiChange: Function) {
   let gui = new GUI();
   gui.add(properties, "downloadPrompt").name("Save high-res renders");
-  if (properties.tests.length > 0)
-    gui.add(properties, "runTests").name("Run predefined tests");
+
+  if (!!properties.testSuites)
+    properties.testSuites.forEach((suite) => {
+      gui.add(properties, "runTests").name(`Run testsuite: ${suite.name}`);
+    });
+
   const lightFolder = gui.addFolder("Light position");
   lightFolder.add(properties.lightPosition, "x", -1, 1).onChange(onGuiChange);
   lightFolder.add(properties.lightPosition, "y", -1, 1).onChange(onGuiChange);
@@ -800,12 +830,22 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
     .onChange(onGuiChange)
     .listen();
   llaFolder
+    .add(properties.localLightAlignment, "Sigma_4", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
+    .add(properties.localLightAlignment, "Sigma_5", 0, 1)
+    .onChange(onGuiChange)
+    .listen();
+  llaFolder
     .add(properties.localLightAlignment, "Sigma_all", 0, 1)
     .onChange((newVal: number) => {
       properties.localLightAlignment.Sigma_0 = newVal;
       properties.localLightAlignment.Sigma_1 = newVal;
       properties.localLightAlignment.Sigma_2 = newVal;
       properties.localLightAlignment.Sigma_3 = newVal;
+      properties.localLightAlignment.Sigma_4 = newVal;
+      properties.localLightAlignment.Sigma_5 = newVal;
       onGuiChange();
     });
 
@@ -821,148 +861,6 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
 const stats = Stats();
 document.body.appendChild(stats.dom);
 
-type Properties = {
-  tests?: Test[];
-  runTests?: Function;
-  downloadPrompt?: Function;
-  textureResolution: number;
-  textureResolutionHigh: number;
-  lightPosition: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  bilateralFilter: {
-    SigmaS: number;
-    SigmaSMultiplier: number;
-    SigmaR: number;
-  };
-  localLightAlignment: {
-    Sigma_0: number;
-    Sigma_1: number;
-    Sigma_2: number;
-    Sigma_3: number;
-    Sigma_all: number;
-    Epsilon: number;
-    Gamma: number;
-    numberOfScales: number;
-  };
-};
-
-type Test = Properties & { testName: string };
-
-const deafultProperties: Properties = {
-  textureResolution: 512,
-  textureResolutionHigh: 1024,
-  lightPosition: {
-    x: 0,
-    y: 1,
-    z: 0.5,
-  },
-  bilateralFilter: {
-    SigmaS: 4,
-    SigmaSMultiplier: 1.7,
-    SigmaR: 0.005,
-  },
-  localLightAlignment: {
-    Sigma_0: 0.5,
-    Sigma_1: 0.5,
-    Sigma_2: 0.5,
-    Sigma_3: 0.5,
-    Sigma_all: 0.5,
-    Epsilon: 1e-5,
-    Gamma: 3,
-    numberOfScales: 4,
-  },
-};
-
-let tests: Test[] = [
-  {
-    ...deafultProperties,
-    testName: "Scale_1",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0.5,
-      Sigma_1: 0,
-      Sigma_2: 0,
-      Sigma_3: 0,
-      Sigma_all: 0,
-    },
-  },
-  {
-    ...deafultProperties,
-    testName: "Scale_2",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0,
-      Sigma_1: 0.5,
-      Sigma_2: 0,
-      Sigma_3: 0,
-      Sigma_all: 0,
-    },
-  },
-  {
-    ...deafultProperties,
-    testName: "Scale_3",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0,
-      Sigma_1: 0,
-      Sigma_2: 0.5,
-      Sigma_3: 0,
-      Sigma_all: 0,
-    },
-  },
-  {
-    ...deafultProperties,
-    testName: "Scale_4",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0,
-      Sigma_1: 0,
-      Sigma_2: 0,
-      Sigma_3: 0.5,
-      Sigma_all: 0,
-    },
-  },
-  {
-    ...deafultProperties,
-    testName: "Scale_1_2",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0.5,
-      Sigma_1: 0.5,
-      Sigma_2: 0,
-      Sigma_3: 0,
-      Sigma_all: 0,
-    },
-  },
-  {
-    ...deafultProperties,
-    testName: "Scale_3_4",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0,
-      Sigma_1: 0,
-      Sigma_2: 0.5,
-      Sigma_3: 0.5,
-      Sigma_all: 0,
-    },
-  },
-  {
-    ...deafultProperties,
-    testName: "Scale_all",
-    localLightAlignment: {
-      ...deafultProperties.localLightAlignment,
-      Sigma_0: 0.5,
-      Sigma_1: 0.5,
-      Sigma_2: 0.5,
-      Sigma_3: 0.5,
-      Sigma_all: 0.5,
-    },
-  },
-];
-
-let properties: Properties = { ...deafultProperties, tests };
+let properties: Properties = { ...deafultProperties, testSuites: [sigmaTests] };
 let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

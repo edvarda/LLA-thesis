@@ -14,8 +14,10 @@ uniform sampler2D scale1;
 uniform sampler2D scale2;
 uniform sampler2D scale3;
 uniform sampler2D scale4;
+uniform sampler2D scale5;
+uniform sampler2D scale6;
 
-uniform float sigma[4];
+uniform float sigma[6];
 
 uniform float epsilon;
 uniform float gamma;
@@ -95,10 +97,14 @@ void main() {
   vec3 n_2 = getUnpackedNormal(scale2);
   vec3 n_3 = getUnpackedNormal(scale3);
   vec3 n_4 = getUnpackedNormal(scale4);
+  vec3 n_5 = getUnpackedNormal(scale5);
+  vec3 n_6 = getUnpackedNormal(scale6);
 
   vec3 adjustedLightDirection;
 
-  adjustedLightDirection = adjustLight(n_3, n_4, lightDirection, sigma[3]);
+  adjustedLightDirection = adjustLight(n_5, n_6, lightDirection, sigma[5]);
+  adjustedLightDirection = adjustLight(n_4, n_5, adjustedLightDirection, sigma[4]);
+  adjustedLightDirection = adjustLight(n_3, n_4, adjustedLightDirection, sigma[3]);
   adjustedLightDirection = adjustLight(n_2, n_3, adjustedLightDirection, sigma[2]);
   adjustedLightDirection = adjustLight(n_1, n_2, adjustedLightDirection, sigma[1]);
   adjustedLightDirection = adjustLight(n_0, n_1, adjustedLightDirection, sigma[0]);
