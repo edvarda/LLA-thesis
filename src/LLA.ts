@@ -3,7 +3,6 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import canvasToImage from "canvas-to-image";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
@@ -372,11 +371,11 @@ export class LocalLightAlignmentApp {
             this.properties = temp;
             setTimeout(() => {
               zipFile.generateAsync({ type: "blob" }).then(function (content) {
-                saveAs(content, "renders.zip");
+                saveAs(content, "testResults.zip");
               });
-            }, 2000);
+            }, 1000);
           }
-        }, i * 2000);
+        }, i * 1000);
       });
     }
   };
@@ -868,7 +867,7 @@ const deafultProperties: Properties = {
   bilateralFilter: {
     SigmaS: 4,
     SigmaSMultiplier: 1.7,
-    SigmaR: 0.001,
+    SigmaR: 0.005,
   },
   localLightAlignment: {
     Sigma_0: 0.5,
@@ -876,7 +875,7 @@ const deafultProperties: Properties = {
     Sigma_2: 0.5,
     Sigma_3: 0.5,
     Sigma_all: 0.5,
-    Epsilon: 1e-6,
+    Epsilon: 1e-5,
     Gamma: 3,
     numberOfScales: 4,
   },
@@ -970,5 +969,5 @@ let tests: Test[] = [
 ];
 
 let properties: Properties = { ...deafultProperties, tests };
-let app = new LocalLightAlignmentApp("./assets/emperor.obj", properties);
+let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

@@ -2,6 +2,15 @@ import glob
 import diplib as dip
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
+
+
+def saveAsGrayscaleTIFF(imagePath):
+    pngImage = Image.open(imagePath)
+    grayscale = pngImage.convert('L')
+    newFilePath = f"{imagePath.removesuffix('.png')}.tiff"
+    grayscale.save(newFilePath)
+    return newFilePath
 
 
 def clamp(num, min_value, max_value):
@@ -19,14 +28,12 @@ def congruenceScore(V_s, V_c, e_s, e_c):
     denominator = e_c
     return (asNpArraySum(numerator)/asNpArraySum(denominator))
 
-# They should probably not be jpegs, but TIFF:s or something else that is lossless. Or are my jpg:s lossless?
 
+def runTest(preshading, depth, postshading):
 
-def runTest(path):
-
-    shading_pre = dip.ImageRead(f"{path}_pre_shading.jpg")
-    shading_post = dip.ImageRead(f"{path}_post_shading.jpg")
-    depth = dip.ImageRead(f"{path}_depth.jpg")
+    shading_pre = dip.ImageRead(preshading)
+    shading_post = dip.ImageRead(postshading)
+    depth = dip.ImageRead(depth)
 
     V = []
     E = []
@@ -47,13 +54,14 @@ def runTest(path):
     scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
     scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
 
-    file = path.removeprefix("./testrenders/")
+    file = postshading.removeprefix("./testrenders/")
     start = file.find("_Sigma_")+7
     end = file.find("_Epsilon_")
     sigmaString = file[start:end]
     start = file.find("name")+4
     end = file.find("_LLA_")
     nameString = file[start:end]
+    print(f"did {postshading}")
     return dict(file=file, scoreBefore=scoreBefore, scoreAfter=scoreAfter, diff=(scoreAfter-scoreBefore), sigma=sigmaString, name=nameString)
 
 
@@ -78,11 +86,17 @@ def plotResults(results):
 
 folderpath = "./testrenders/*"
 folders = [x for x in glob.glob(folderpath)]
+
 for folder in folders:
     print(f"Running tests in: {folder}")
-    images = [x.removesuffix('_pre_shading.jpg')
-              for x in glob.glob(f"{folder}/*_pre_shading.jpg")]
-    results = [runTest(image) for image in images]
+    tiffImages = [saveAsGrayscaleTIFF(x)
+                  for x in glob.glob(f"{folder}/*.png")]
+
+    preshading = glob.glob(f"{folder}/*_pre_shading.tiff").pop()
+    depth = glob.glob(f"{folder}/*_depth.tiff").pop()
+    postImages = [x for x in glob.glob(f"{folder}/*_post_shading.tiff")]
+    results = [runTest(preshading, depth, postshading)
+               for postshading in postImages]
     results.sort(key=lambda result: result.get("file"))
     printResults(results)
     plotResults(results)
