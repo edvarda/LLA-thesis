@@ -281,7 +281,7 @@ export class LocalLightAlignmentApp {
     this.initializeRenderTargets();
     this.setupHTLMElements();
 
-    // window.addEventListener("resize", this.onWindowResize);
+    window.addEventListener("resize", this.onWindowResize);
     this.loadModel(modelUrl, (loadedObject: Group) => {
       let mesh = <THREE.Mesh>loadedObject.children[0];
       this.geometryScene = new GeometryScene(mesh);
@@ -312,14 +312,6 @@ export class LocalLightAlignmentApp {
       }
     );
   }
-  downloadImage = (data: any, filename: string = "untitled.tiff") => {
-    var a = document.createElement("a");
-    a.href = data;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    console.log("hello!");
-  };
 
   downloadPrompt = () => {
     let filenamePrefix = prompt(
@@ -470,7 +462,7 @@ export class LocalLightAlignmentApp {
   renderImages(
     filenamePrefix: string,
     zipFile: JSZip,
-    addPreAndDepthToZip: boolean = true
+    addPreshadingAndDepthToZip: boolean = true
   ) {
     const addToZip = (imageData: string, filename: string) => {
       zipFile.file(filename, imageData.substring(imageData.indexOf(",") + 1), {
@@ -507,7 +499,7 @@ export class LocalLightAlignmentApp {
     post.prepareSimpleLambertShadingPass(highResGeometryPassTarget.texture);
     this.imageOutputRenderer.render(post.scene, post.camera);
 
-    if (addPreAndDepthToZip) {
+    if (addPreshadingAndDepthToZip) {
       addToZip(
         this.imageOutputRenderer.domElement.toDataURL(),
         `${filenamePrefix}_pre_shading.png`
@@ -521,7 +513,7 @@ export class LocalLightAlignmentApp {
     );
     this.imageOutputRenderer.render(post.scene, post.camera);
 
-    if (addPreAndDepthToZip) {
+    if (addPreshadingAndDepthToZip) {
       addToZip(
         this.imageOutputRenderer.domElement.toDataURL(),
         `${filenamePrefix}_depth.png`
@@ -699,18 +691,20 @@ export class LocalLightAlignmentApp {
     this.shouldRenderPostProcessing = true;
   };
 
-  onWindowResize(): void {
+  onWindowResize = (): void => {
+    console.log(this.realTimeRenderer);
+    console.log(this);
     const width = this.realTimeRenderer.domElement.clientWidth;
     const height = this.realTimeRenderer.domElement.clientHeight;
     this.realTimeRenderer.setSize(width, height);
     this.geometryScene.camera.aspect = getAspectRatio();
     this.geometryScene.camera.updateProjectionMatrix();
-  }
+    this.shouldRenderPostProcessing = true;
+  };
 
   renderToTarget(target: THREE.WebGLRenderTarget) {
     let { scene, camera } = this.activeScene;
     this.activeRenderer.setRenderTarget(target);
-    // this.activeRenderer.clear();
     this.activeRenderer.render(scene, camera);
     this.activeRenderer.setRenderTarget(null);
   }
@@ -826,6 +820,7 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
 
 const stats = Stats();
 document.body.appendChild(stats.dom);
+
 type Properties = {
   tests?: Test[];
   runTests?: Function;
