@@ -1,30 +1,39 @@
 type Properties = {
   testSuites?: TestSuite[];
+  sigmaVariations?: Partial<Test>[];
   runTests?: Function;
   downloadPrompt?: Function;
-  textureResolution: number;
-  textureResolutionHigh: number;
+  textureResolution?: number;
+  textureResolutionHigh?: number;
   lightPosition: {
     x: number;
     y: number;
     z: number;
   };
   bilateralFilter: {
-    SigmaS: number;
-    SigmaSMultiplier: number;
-    SigmaR: number;
+    SigmaS?: number;
+    SigmaS_individual?: {
+      SigmaS_0?: number;
+      SigmaS_1?: number;
+      SigmaS_2?: number;
+      SigmaS_3?: number;
+      SigmaS_4?: number;
+      SigmaS_5?: number;
+    };
+    SigmaSMultiplier?: number;
+    SigmaR?: number;
   };
-  localLightAlignment: {
-    Sigma_0: number;
-    Sigma_1: number;
-    Sigma_2: number;
-    Sigma_3: number;
-    Sigma_4: number;
-    Sigma_5: number;
-    Sigma_all: number;
-    Epsilon: number;
-    Gamma: number;
-    numberOfScales: number;
+  localLightAlignment?: {
+    Sigma_0?: number;
+    Sigma_1?: number;
+    Sigma_2?: number;
+    Sigma_3?: number;
+    Sigma_4?: number;
+    Sigma_5?: number;
+    Sigma_all?: number;
+    Epsilon?: number;
+    Gamma?: number;
+    numberOfScales?: number;
   };
 };
 
@@ -33,10 +42,10 @@ type Test = Properties & { testName: string };
 type TestSuite = {
   name: string;
   runTestSuite?: Function;
-  tests: Test[];
+  tests: Array<Test>;
 };
 
-const deafultProperties: Properties = {
+const defaultProperties: Properties = {
   textureResolution: 512,
   textureResolutionHigh: 1024,
   lightPosition: {
@@ -46,8 +55,16 @@ const deafultProperties: Properties = {
   },
   bilateralFilter: {
     SigmaS: 4,
+    SigmaS_individual: {
+      SigmaS_0: 2,
+      SigmaS_1: 4,
+      SigmaS_2: 8,
+      SigmaS_3: 16,
+      SigmaS_4: 32,
+      SigmaS_5: 64,
+    },
     SigmaSMultiplier: 1.7,
-    SigmaR: 0.005,
+    SigmaR: 0.05,
   },
   localLightAlignment: {
     Sigma_0: 0.5,
@@ -63,4 +80,4 @@ const deafultProperties: Properties = {
   },
 };
 
-export { Properties, Test, TestSuite, deafultProperties };
+export { Properties, Test, TestSuite, defaultProperties };

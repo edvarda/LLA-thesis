@@ -26,8 +26,9 @@ import { Group } from "three";
 
 // Properties and tests
 
-import { Properties, Test, deafultProperties } from "./properties";
-import sigmaTests from "./sigmaTests";
+import { Properties, Test, defaultProperties, TestSuite } from "./properties";
+import sigmaVariations from "./sigmaVariations";
+import { scaleSpaceTests } from "./testSuites";
 
 class GeometryScene {
   scene: THREE.Scene;
@@ -266,7 +267,7 @@ export class LocalLightAlignmentApp {
   constructor(modelUrl: string, properties: Properties) {
     this.properties = properties;
     this.properties.downloadPrompt = this.downloadPrompt;
-    this.properties.runTests = this.runPredefinedTests;
+    this.setupTests();
 
     this.modelName = modelUrl.substring(
       modelUrl.lastIndexOf("/") + 1,
@@ -354,13 +355,13 @@ export class LocalLightAlignmentApp {
   };
 
   setupTests = () => {
-    this.properties.testSuites.forEach((testSuite) => {
-      testSuite.runTestSuite = () => this.runPredefinedTests(testSuite.tests);
+    this.properties.testSuites.forEach((testSuite: TestSuite) => {
+      testSuite.runTestSuite = () => this.runPredefinedTests(testSuite);
     });
   };
 
-  runPredefinedTests = (tests: Test[]) => {
-    if (!!tests) {
+  runPredefinedTests = (testSuite: TestSuite) => {
+    if (!!testSuite.tests) {
       resizeRendererToDimensions(
         this.imageOutputRenderer,
         this.properties.textureResolutionHigh,
@@ -368,29 +369,59 @@ export class LocalLightAlignmentApp {
       );
       let savedProperties = this.properties;
       let zipFile = new JSZip();
-      tests.forEach((testProperties: Test, i) => {
-        setTimeout(() => {
-          this.properties = testProperties;
-          this.initializeRenderTargets();
+      let firstTest = true;
+      for (let testProperties of testSuite.tests) {
+        this.properties = testProperties;
+        this.initializeRenderTargets();
+        for (const scalePartial of savedProperties.sigmaVariations) {
+          let testName = testProperties.testName + scalePartial.testName;
+          this.properties = {
+            ...this.properties,
+            localLightAlignment: {
+              ...this.properties.localLightAlignment,
+              ...scalePartial.localLightAlignment,
+            },
+          };
           this.onGuiChange();
           this.renderImages(
-            `[${i + 1}]_name[${
-              testProperties.testName
-            }]_${this.getDefaultFilenamePrefix()}`,
+            `${testName}_${this.modelName}`,
             zipFile,
-            i > 0 ? false : true
+            firstTest ? true : false
           );
-
-          if (i >= tests.length - 1) {
-            this.properties = savedProperties;
-            setTimeout(() => {
-              zipFile.generateAsync({ type: "blob" }).then(function (content) {
-                saveAs(content, "testResults.zip");
-              });
-            }, 1000);
-          }
-        }, i * 1000);
+          firstTest = false;
+        }
+      }
+      this.properties = savedProperties;
+      zipFile.generateAsync({ type: "blob" }).then(function (content) {
+        saveAs(content, `${testSuite.name}.zip`);
       });
+
+      // testSuite.tests.forEach((testProperties: Test, i) => {
+      //   setTimeout(() => {
+      //     this.properties = testProperties;
+      //     this.initializeRenderTargets();
+      //     this.onGuiChange();
+      //     for (const scalePartial of this.properties.sigmaVariations) {
+      //     }
+      //     this.renderImages(
+      //       `[${i + 1}]_name[${
+      //         testProperties.testName
+      //       }]_${this.getDefaultFilenamePrefix()}`,
+      //       zipFile,
+      //       i > 0 ? false : true
+      //     );
+
+      //     if (i >= testSuite.tests.length - 1) {
+      //       this.properties = savedProperties;
+      //       console.log(this);
+      //       setTimeout(() => {
+      //         zipFile.generateAsync({ type: "blob" }).then(function (content) {
+      //           saveAs(content, `${testSuite.name}.zip`);
+      //         });
+      //       }, 1000);
+      //     }
+      //   }, i * 1000);
+      // });
     }
   };
 
@@ -456,10 +487,8 @@ export class LocalLightAlignmentApp {
       i < this.properties.localLightAlignment.numberOfScales;
       i++
     ) {
-      let sigmaMultiplier =
-        this.properties.bilateralFilter.SigmaSMultiplier * (i + 1);
-      let sigmaS = this.properties.bilateralFilter.SigmaS * sigmaMultiplier;
-
+      let sigmaS =
+        this.properties.bilateralFilter.SigmaS_individual[`SigmaS_${i}`];
       post.prepareBilateralFilteringPass(
         filteringInputNormals[i],
         sigmaS,
@@ -526,7 +555,7 @@ export class LocalLightAlignmentApp {
     if (addPreshadingAndDepthToZip) {
       addToZip(
         this.imageOutputRenderer.domElement.toDataURL(),
-        `${filenamePrefix}_pre_shading.png`
+        `preShading.png`
       );
     }
 
@@ -538,10 +567,7 @@ export class LocalLightAlignmentApp {
     this.imageOutputRenderer.render(post.scene, post.camera);
 
     if (addPreshadingAndDepthToZip) {
-      addToZip(
-        this.imageOutputRenderer.domElement.toDataURL(),
-        `${filenamePrefix}_depth.png`
-      );
+      addToZip(this.imageOutputRenderer.domElement.toDataURL(), `depth.png`);
     }
 
     let filteringInputNormals = [
@@ -558,10 +584,8 @@ export class LocalLightAlignmentApp {
       i < this.properties.localLightAlignment.numberOfScales;
       i++
     ) {
-      let sigmaMultiplier =
-        this.properties.bilateralFilter.SigmaSMultiplier * (i + 1);
-      let sigmaS = this.properties.bilateralFilter.SigmaS * sigmaMultiplier;
-
+      let sigmaS =
+        this.properties.bilateralFilter.SigmaS_individual[`SigmaS_${i}`];
       post.prepareBilateralFilteringPass(
         filteringInputNormals[i],
         sigmaS,
@@ -584,7 +608,7 @@ export class LocalLightAlignmentApp {
 
     addToZip(
       this.imageOutputRenderer.domElement.toDataURL(),
-      `${filenamePrefix}_post_shading.png`
+      `${filenamePrefix}_postShading.png`
     );
 
     this.imageOutputRenderer.clear();
@@ -697,8 +721,9 @@ export class LocalLightAlignmentApp {
   }
 
   onGuiChange = () => {
+    console.log(this.properties.bilateralFilter);
     this.postProcessingScene.bilateralFilterMaterial.uniforms.sigmaS.value =
-      this.properties.bilateralFilter.SigmaS;
+      this.properties.bilateralFilter.SigmaS_individual.SigmaS_0;
     this.postProcessingScene.bilateralFilterMaterial.uniforms.sigmaR.value =
       this.properties.bilateralFilter.SigmaR;
     this.postProcessingScene.localLightAlignmentMaterial.uniforms.sigma.value =
@@ -720,8 +745,6 @@ export class LocalLightAlignmentApp {
   };
 
   onWindowResize = (): void => {
-    console.log(this.realTimeRenderer);
-    console.log(this);
     const width = this.realTimeRenderer.domElement.clientWidth;
     const height = this.realTimeRenderer.domElement.clientHeight;
     this.realTimeRenderer.setSize(width, height);
@@ -795,7 +818,7 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
 
   if (!!properties.testSuites)
     properties.testSuites.forEach((suite) => {
-      gui.add(properties, "runTests").name(`Run testsuite: ${suite.name}`);
+      gui.add(suite, "runTestSuite").name(`Run testsuite: ${suite.name}`);
     });
 
   const lightFolder = gui.addFolder("Light position");
@@ -803,42 +826,34 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
   lightFolder.add(properties.lightPosition, "y", -1, 1).onChange(onGuiChange);
   lightFolder.add(properties.lightPosition, "z", -1, 1).onChange(onGuiChange);
   const filterFolder = gui.addFolder("Bilateral Filter");
-  filterFolder
-    .add(properties.bilateralFilter, "SigmaS", 0, 10)
-    .onChange(onGuiChange);
-  filterFolder
-    .add(properties.bilateralFilter, "SigmaSMultiplier", 1, 2.5)
-    .onChange(onGuiChange);
+
+  // filterFolder
+  //   .add(properties.bilateralFilter, "SigmaS", 0, 10)
+  //   .onChange(onGuiChange);
+  // filterFolder
+  //   .add(properties.bilateralFilter, "SigmaSMultiplier", 1, 2.5)
+  //   .onChange(onGuiChange);
+
+  for (let i = 0; i < properties.localLightAlignment.numberOfScales; i++) {
+    filterFolder
+      .add(properties.bilateralFilter.SigmaS_individual, `SigmaS_${i}`, 1, 128)
+      .onChange(onGuiChange)
+      .listen();
+  }
+
   filterFolder
     .add(properties.bilateralFilter, "SigmaR", 0, 0.5)
     .onChange(onGuiChange);
 
   filterFolder.open();
   const llaFolder = gui.addFolder("Local Light Alignment");
-  llaFolder
-    .add(properties.localLightAlignment, "Sigma_0", 0, 1)
-    .onChange(onGuiChange)
-    .listen();
-  llaFolder
-    .add(properties.localLightAlignment, "Sigma_1", 0, 1)
-    .onChange(onGuiChange)
-    .listen();
-  llaFolder
-    .add(properties.localLightAlignment, "Sigma_2", 0, 1)
-    .onChange(onGuiChange)
-    .listen();
-  llaFolder
-    .add(properties.localLightAlignment, "Sigma_3", 0, 1)
-    .onChange(onGuiChange)
-    .listen();
-  llaFolder
-    .add(properties.localLightAlignment, "Sigma_4", 0, 1)
-    .onChange(onGuiChange)
-    .listen();
-  llaFolder
-    .add(properties.localLightAlignment, "Sigma_5", 0, 1)
-    .onChange(onGuiChange)
-    .listen();
+
+  for (let i = 0; i < properties.localLightAlignment.numberOfScales; i++) {
+    llaFolder
+      .add(properties.localLightAlignment, `Sigma_${i}`, 0, 1)
+      .onChange(onGuiChange)
+      .listen();
+  }
   llaFolder
     .add(properties.localLightAlignment, "Sigma_all", 0, 1)
     .onChange((newVal: number) => {
@@ -863,6 +878,13 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
 const stats = Stats();
 document.body.appendChild(stats.dom);
 
-let properties: Properties = { ...deafultProperties, testSuites: [sigmaTests] };
+let properties: Properties = {
+  ...defaultProperties,
+  testSuites: [scaleSpaceTests],
+  sigmaVariations: sigmaVariations,
+};
+
+console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
+console.log(`Number of variations ${sigmaVariations.length}`);
 let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);
