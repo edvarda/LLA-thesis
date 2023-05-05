@@ -68,7 +68,7 @@ def runTest(preshading, depth, postshading):
     end = filename.find("]", start)
     spatialString = filename[start:end]
 
-    print(f"did {postshading}")
+    print(f"Processed {postshading}")
     return dict(file=filename, scoreBefore=scoreBefore, scoreAfter=scoreAfter, diff=(scoreAfter-scoreBefore), sigma=scaleString, range=rangeString, spatial=spatialString)
 
 
@@ -78,20 +78,6 @@ def printResults(results):
         print(f"Sigma: {x.get('sigma')}")
         print(
             f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
-
-
-def plotResults(results):
-
-    fig, ax = plt.subplots(layout='constrained')
-    ypoints = np.array([result.get("scoreAfter") for result in results])
-    xpoints = np.array([result.get("sigma") for result in results])
-
-    ax.bar(xpoints, ypoints)
-    ax.xlabel("Scale enhanced")
-    ax.ylabel("Congruence score after LLA pass")
-    ax.xticks(rotation=70)
-    ax.show(block=True)
-
 
 def perRangePlot(plot, results):
     scaleValues = list({x.get("sigma") for x in results})
@@ -105,16 +91,10 @@ def perRangePlot(plot, results):
     for scoreByScaleSpace in scorePerScaleSpace.values():
         scoreByScaleSpace.sort(key=lambda x: x[1])
 
-    # penguin_means = {
-    #     'Bill Depth': (18.35, 18.43, 14.98),
-    #     'Bill Length': (38.79, 48.83, 47.50),
-    #     'Flipper Length': (189.95, 195.82, 217.19),
-    # }
-
     x = np.arange(len(scaleValues))  # the label locations
     width = 0.30  # the width of the bars
+    
     multiplier = 0
-
     for scaleSpace, congruenceScores in scorePerScaleSpace.items():
         offset = width * multiplier
         scores = [round(congruenceScore[0], 2)
@@ -134,8 +114,6 @@ def perRangePlot(plot, results):
 
 
 def runInFolder(folder):
-    print(folder)
-    
     for filename in folder.glob("./*.png"):
         saveAsGrayscaleTIFF(filename)
     preshading = str(folder / "./preShading.tiff")
@@ -148,32 +126,13 @@ def runInFolder(folder):
     resultGroups = defaultdict(list)
     for result in results:
         resultGroups[result.get("range")].append(result)
-        print(result.get("sigma"))
-        print(result.get("range"))
 
     fig, ax = plt.subplots(2, 2, layout='constrained')
     for ((k, v), plot) in zip(resultGroups.items(), ax.flat):
-        print(f"{k} group: ")
-        print(f"plot: {plot}")
         perRangePlot(plot, v)
     plt.show(block=True)
-    # printResults(results)
-    # plotResults(results)
 
 
 dir = sys.argv[1]
 path = Path(dir)
 runInFolder(path)
-
-# for folder in folders:
-#     tiffImages = [saveAsGrayscaleTIFF(x)
-#                   for x in glob.glob(f"{folder}/*.png")]
-
-#     preshading = glob.glob(f"{folder}/*_pre_shading.tiff").pop()
-#     depth = glob.glob(f"{folder}/*_depth.tiff").pop()
-#     postImages = [x for x in glob.glob(f"{folder}/*_post_shading.tiff")]
-#     results = [runTest(preshading, depth, postshading)
-#                for postshading in postImages]
-#     results.sort(key=lambda result: result.get("file"))
-#     printResults(results)
-#     plotResults(results)
