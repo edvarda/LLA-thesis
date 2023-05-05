@@ -93,45 +93,44 @@ def plotResults(results):
     ax.show(block=True)
 
 
-def newPlot(results):
-    spatialGroups = defaultdict(list)
+def perRangePlot(plot, results):
+    scaleValues = list({x.get("sigma") for x in results})
+    scaleValues.sort()
+    species = ("Adelie", "Chinstrap", "Gentoo")
+
+    scorePerScaleSpace = defaultdict(list)
     for result in results:
-        spatialGroups[result.get("spatial")].append(result)
+        scorePerScaleSpace[result.get("spatial")].append(
+            (result.get("scoreAfter"), result.get("sigma")))
+    for scoreByScaleSpace in scorePerScaleSpace.values():
+        scoreByScaleSpace.sort(key=lambda x: x[1])
 
-    ranges = list()
+    # penguin_means = {
+    #     'Bill Depth': (18.35, 18.43, 14.98),
+    #     'Bill Length': (38.79, 48.83, 47.50),
+    #     'Flipper Length': (189.95, 195.82, 217.19),
+    # }
 
-    keys = list(spatialGroups.keys())
-    xvalues = [x.get("sigma") for x in [y for y in spatialGroups.values()]]
-    yvalues = [x.get("scoreAfter")
-               for x in [y for y in spatialGroups.values()]]
+    x = np.arange(len(scaleValues))  # the label locations
+    width = 0.30  # the width of the bars
+    multiplier = 0
 
-    ypoints = np.array([result.get("scoreAfter") for result in results])
-    xpoints = np.array([result.get("sigma") for result in results])
+    for scaleSpace, congruenceScores in scorePerScaleSpace.items():
+        offset = width * multiplier
+        scores = [round(congruenceScore[0], 2)
+                  for congruenceScore in congruenceScores]
+        rects = plot.bar(x + offset, scores, width,
+                         label=f"Scalespace: {scaleSpace}")
+        plot.bar_label(rects, padding=3, rotation=90)
+        multiplier += 1
 
-    # set width of bars
-    barWidth = 0.15
-
-    # Set position of bar on X axis
-    r1 = np.arange(len(values[0]))
-    r2 = [x + barWidth for x in r1]
-    r3 = [x + barWidth for x in r2]
-
-    # Make the plot
-    plt.bar(r1, values[0], color='#7f6d5f', width=barWidth,
-            edgecolor='white', label=keys[0])
-    plt.bar(r2, values[1], color='#557f2d', width=barWidth,
-            edgecolor='white', label=keys[1])
-    plt.bar(r3, values[2], color='#2d7f5e', width=barWidth,
-            edgecolor='white', label=keys[2])
-
-    # Add xticks on the middle of the group bars
-    plt.xlabel('Scales', fontweight='bold')
-    plt.xticks([r + barWidth for r in range(len(values[0]))],
-               ['A', 'B', 'C', 'D', 'E'])  # set comprehension
-
-    # Create legend & Show graphic
-    plt.legend()
-    plt.show(block=True)
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    plot.set_ylabel('Congruence score')
+    plot.set_xlabel('Scale(s) used for enhancment')
+    plot.set_title(f'For RangeSigma={results[0].get("range")}')
+    plot.set_xticks(x + width, scaleValues)
+    plot.legend()
+    plot.set_ylim(0, 1)
 
 
 def runInFolder(folder):
@@ -152,10 +151,12 @@ def runInFolder(folder):
         print(result.get("sigma"))
         print(result.get("range"))
 
-    print("groups:")
-    for (k, v) in resultGroups.items():
-        newPlot(v)
-
+    fig, ax = plt.subplots(2, 2, layout='constrained')
+    for ((k, v), plot) in zip(resultGroups.items(), ax.flat):
+        print(f"{k} group: ")
+        print(f"plot: {plot}")
+        perRangePlot(plot, v)
+    plt.show(block=True)
     # printResults(results)
     # plotResults(results)
 
