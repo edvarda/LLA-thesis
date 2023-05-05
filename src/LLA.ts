@@ -886,5 +886,5 @@ let properties: Properties = {
 
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${sigmaVariations.length}`);
-let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
+let app = new LocalLightAlignmentApp("./models/vasa.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

@@ -27,19 +27,19 @@ const spatialVariables: Partial<Test>[] = [
       },
     },
   },
-  // {
-  //   testName: "SigmaSpatial[24..24]",
-  //   bilateralFilter: {
-  //     SigmaS_individual: {
-  //       SigmaS_0: 24,
-  //       SigmaS_1: 24,
-  //       SigmaS_2: 24,
-  //       SigmaS_3: 24,
-  //       SigmaS_4: 24,
-  //       SigmaS_5: 24,
-  //     },
-  //   },
-  // },
+  {
+    testName: "SigmaSpatial[24..24]",
+    bilateralFilter: {
+      SigmaS_individual: {
+        SigmaS_0: 24,
+        SigmaS_1: 24,
+        SigmaS_2: 24,
+        SigmaS_3: 24,
+        SigmaS_4: 24,
+        SigmaS_5: 24,
+      },
+    },
+  },
 ];
 
 const rangeVariables: Partial<Test>[] = [
@@ -49,18 +49,18 @@ const rangeVariables: Partial<Test>[] = [
       SigmaR: 0.1,
     },
   },
-  // {
-  //   testName: "SigmaRange[0.05]",
-  //   bilateralFilter: {
-  //     SigmaR: 0.05,
-  //   },
-  // },
-  // {
-  //   testName: "SigmaRange[0.01]",
-  //   bilateralFilter: {
-  //     SigmaR: 0.01,
-  //   },
-  // },
+  {
+    testName: "SigmaRange[0.05]",
+    bilateralFilter: {
+      SigmaR: 0.05,
+    },
+  },
+  {
+    testName: "SigmaRange[0.01]",
+    bilateralFilter: {
+      SigmaR: 0.01,
+    },
+  },
   {
     testName: "SigmaRange[0.005]",
     bilateralFilter: {

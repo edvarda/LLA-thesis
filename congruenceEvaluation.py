@@ -5,14 +5,13 @@ import diplib as dip
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+from pathlib import Path
 
 
 def saveAsGrayscaleTIFF(imagePath):
     pngImage = Image.open(imagePath)
     grayscale = pngImage.convert('L')
-    newFilePath = f"{imagePath.removesuffix('.png')}.tiff"
-    grayscale.save(newFilePath)
-    return newFilePath
+    grayscale.save(imagePath.with_suffix('.tiff'))
 
 
 def clamp(num, min_value, max_value):
@@ -136,11 +135,13 @@ def newPlot(results):
 
 
 def runInFolder(folder):
-    for filename in glob.glob(f"{folder}/*.png"):
+    print(folder)
+    
+    for filename in folder.glob("./*.png"):
         saveAsGrayscaleTIFF(filename)
-    preshading = glob.glob(f"{folder}/preShading.tiff").pop()
-    depth = glob.glob(f"{folder}/depth.tiff").pop()
-    testImages = [x for x in glob.glob(f"{folder}/*_postShading.tiff")]
+    preshading = str(folder / "./preShading.tiff")
+    depth = str(folder / "./depth.tiff")
+    testImages = [str(x) for x in folder.glob("./*_postShading.tiff")]
     results = [runTest(preshading, depth, testImage)
                for testImage in testImages]
     results.sort(key=lambda result: result.get("file"))
@@ -160,7 +161,8 @@ def runInFolder(folder):
 
 
 dir = sys.argv[1]
-runInFolder(dir)
+path = Path(dir)
+runInFolder(path)
 
 # for folder in folders:
 #     tiffImages = [saveAsGrayscaleTIFF(x)
