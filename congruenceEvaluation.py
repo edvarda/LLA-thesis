@@ -85,10 +85,41 @@ def printResults(results):
             f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
 
 
+def strengthPlot(plot, results):
+    scaleValues = list({x.get("sigma") for x in results})
+    scaleValues.sort()
+
+    scorePerStrength = defaultdict(list)
+    for result in results:
+        scorePerStrength[result.get("strength")].append(
+            (result.get("scoreAfter"), result.get("sigma")))
+    for scoreByStrength in scorePerStrength.values():
+        scoreByStrength.sort(key=lambda x: x[1])
+
+    x = np.arange(len(scaleValues))  # the label locations
+    width = 0.30  # the width of the bars
+
+    multiplier = 0
+    for strength, congruenceScores in scorePerStrength.items():
+        offset = width * multiplier
+        scores = [round(congruenceScore[0], 2)
+                  for congruenceScore in congruenceScores]
+        rects = plot.bar(x + offset, scores, width,
+                         label=f"Strength: {strength}")
+        plot.bar_label(rects, padding=3, rotation=90)
+        multiplier += 1
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    plot.set_ylabel('Congruence score difference')
+    plot.set_xlabel('Scale(s) used for enhancment')
+    plot.set_title(f'For what?')
+    plot.set_xticks(x + width, scaleValues)
+    plot.legend()
+
+
 def perRangePlot(plot, results):
     scaleValues = list({x.get("sigma") for x in results})
     scaleValues.sort()
-    species = ("Adelie", "Chinstrap", "Gentoo")
 
     scorePerScaleSpace = defaultdict(list)
     for result in results:
@@ -119,7 +150,7 @@ def perRangePlot(plot, results):
     # plot.set_ylim(0, 1)
 
 
-def runInFolder(folder):
+def runInFolder(folder, type):
     for filename in folder.glob("./*.png"):
         saveAsGrayscaleTIFF(filename)
     preshading = str(folder / "./preShading.tiff")
@@ -129,16 +160,22 @@ def runInFolder(folder):
                for testImage in testImages]
     results.sort(key=lambda result: result.get("file"))
 
-    resultGroups = defaultdict(list)
-    for result in results:
-        resultGroups[result.get("range")].append(result)
+    if (type == 'scalespace'):
+        resultGroups = defaultdict(list)
+        for result in results:
+            resultGroups[result.get("range")].append(result)
 
-    fig, ax = plt.subplots(2, 2, layout='constrained')
-    for ((k, v), plot) in zip(resultGroups.items(), ax.flat):
-        perRangePlot(plot, v)
-    plt.show(block=True)
+        fig, ax = plt.subplots(2, 2, layout='constrained')
+        for ((k, v), plot) in zip(resultGroups.items(), ax.flat):
+            perRangePlot(plot, v)
+        plt.show(block=True)
+    elif (type == 'strength'):
+        fig, ax = plt.subplots(layout='constrained')
+        strengthPlot(ax, results)
+        plt.show(block=True)
 
 
 dir = sys.argv[1]
+type = sys.argv[2]
 path = Path(dir)
-runInFolder(path)
+runInFolder(path, type)
