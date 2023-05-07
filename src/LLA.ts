@@ -27,8 +27,8 @@ import { Group } from "three";
 // Properties and tests
 
 import { Properties, Test, defaultProperties, TestSuite } from "./properties";
-import sigmaVariations from "./sigmaVariations";
-import { scaleSpaceTests } from "./testSuites";
+import scaleSeparations from "./sigmaVariations";
+import { scaleSpaceTests, enhancementStrengthTests } from "./testSuites";
 
 class GeometryScene {
   scene: THREE.Scene;
@@ -361,6 +361,14 @@ export class LocalLightAlignmentApp {
   };
 
   runPredefinedTests = (testSuite: TestSuite) => {
+    const setTestScales = (scalePartial: Partial<Test>, strength: number) => {
+      let scale: Partial<Test> = { ...scalePartial };
+      for (let i = 0; i < 6; i++) {
+        scale.localLightAlignment[`Sigma_${i}`] *= strength;
+      }
+      return scale;
+    };
+
     if (!!testSuite.tests) {
       resizeRendererToDimensions(
         this.imageOutputRenderer,
@@ -379,7 +387,10 @@ export class LocalLightAlignmentApp {
             ...this.properties,
             localLightAlignment: {
               ...this.properties.localLightAlignment,
-              ...scalePartial.localLightAlignment,
+              ...setTestScales(
+                scalePartial,
+                testProperties.localLightAlignment.testStrength
+              ),
             },
           };
           this.onGuiChange();
@@ -395,33 +406,6 @@ export class LocalLightAlignmentApp {
       zipFile.generateAsync({ type: "blob" }).then(function (content) {
         saveAs(content, `${testSuite.name}.zip`);
       });
-
-      // testSuite.tests.forEach((testProperties: Test, i) => {
-      //   setTimeout(() => {
-      //     this.properties = testProperties;
-      //     this.initializeRenderTargets();
-      //     this.onGuiChange();
-      //     for (const scalePartial of this.properties.sigmaVariations) {
-      //     }
-      //     this.renderImages(
-      //       `[${i + 1}]_name[${
-      //         testProperties.testName
-      //       }]_${this.getDefaultFilenamePrefix()}`,
-      //       zipFile,
-      //       i > 0 ? false : true
-      //     );
-
-      //     if (i >= testSuite.tests.length - 1) {
-      //       this.properties = savedProperties;
-      //       console.log(this);
-      //       setTimeout(() => {
-      //         zipFile.generateAsync({ type: "blob" }).then(function (content) {
-      //           saveAs(content, `${testSuite.name}.zip`);
-      //         });
-      //       }, 1000);
-      //     }
-      //   }, i * 1000);
-      // });
     }
   };
 
@@ -880,11 +864,11 @@ document.body.appendChild(stats.dom);
 
 let properties: Properties = {
   ...defaultProperties,
-  testSuites: [scaleSpaceTests],
-  sigmaVariations: sigmaVariations,
+  testSuites: [scaleSpaceTests, enhancementStrengthTests],
+  sigmaVariations: scaleSeparations,
 };
 
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
-console.log(`Number of variations ${sigmaVariations.length}`);
-let app = new LocalLightAlignmentApp("./models/vasa.obj", properties);
+console.log(`Number of variations ${scaleSeparations.length}`);
+let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

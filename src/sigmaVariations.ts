@@ -1,10 +1,17 @@
 import { Test, defaultProperties } from "./properties";
 
-const sigmaVariations: Partial<Test>[] = [
+const enhancementStrength: (Partial<Test> & { strength: number })[] = [
+  {
+    testName: "Strength[1]",
+    strength: 1,
+  },
+];
+
+const scaleSeparations: Partial<Test>[] = [
   {
     testName: "Scale[1]",
     localLightAlignment: {
-      Sigma_0: 0.5,
+      Sigma_0: 1,
       Sigma_1: 0,
       Sigma_2: 0,
       Sigma_3: 0,
@@ -16,7 +23,7 @@ const sigmaVariations: Partial<Test>[] = [
     testName: "Scale[2]",
     localLightAlignment: {
       Sigma_0: 0,
-      Sigma_1: 0.5,
+      Sigma_1: 1,
       Sigma_2: 0,
       Sigma_3: 0,
       Sigma_4: 0,
@@ -28,7 +35,7 @@ const sigmaVariations: Partial<Test>[] = [
     localLightAlignment: {
       Sigma_0: 0,
       Sigma_1: 0,
-      Sigma_2: 0.5,
+      Sigma_2: 1,
       Sigma_3: 0,
       Sigma_4: 0,
       Sigma_5: 0,
@@ -40,7 +47,7 @@ const sigmaVariations: Partial<Test>[] = [
       Sigma_0: 0,
       Sigma_1: 0,
       Sigma_2: 0,
-      Sigma_3: 0.5,
+      Sigma_3: 1,
       Sigma_4: 0,
       Sigma_5: 0,
     },
@@ -52,7 +59,7 @@ const sigmaVariations: Partial<Test>[] = [
       Sigma_1: 0,
       Sigma_2: 0,
       Sigma_3: 0,
-      Sigma_4: 0.5,
+      Sigma_4: 1,
       Sigma_5: 0,
     },
   },
@@ -64,15 +71,15 @@ const sigmaVariations: Partial<Test>[] = [
       Sigma_2: 0,
       Sigma_3: 0,
       Sigma_4: 0,
-      Sigma_5: 0.5,
+      Sigma_5: 1,
     },
   },
   {
     testName: "Scale[Fine]",
     localLightAlignment: {
-      Sigma_0: 0.5,
-      Sigma_1: 0.5,
-      Sigma_2: 0.5,
+      Sigma_0: 1,
+      Sigma_1: 1,
+      Sigma_2: 1,
       Sigma_3: 0,
       Sigma_4: 0,
       Sigma_5: 0,
@@ -84,22 +91,22 @@ const sigmaVariations: Partial<Test>[] = [
       Sigma_0: 0,
       Sigma_1: 0,
       Sigma_2: 0,
-      Sigma_3: 0.5,
-      Sigma_4: 0.5,
-      Sigma_5: 0.5,
+      Sigma_3: 1,
+      Sigma_4: 1,
+      Sigma_5: 1,
     },
   },
   {
     testName: "Scale[All]",
     localLightAlignment: {
-      Sigma_0: 0.5,
-      Sigma_1: 0.5,
-      Sigma_2: 0.5,
-      Sigma_3: 0.5,
-      Sigma_4: 0.5,
-      Sigma_5: 0.5,
+      Sigma_0: 1,
+      Sigma_1: 1,
+      Sigma_2: 1,
+      Sigma_3: 1,
+      Sigma_4: 1,
+      Sigma_5: 1,
     },
   },
 ];
 
-export default sigmaVariations;
+export default scaleSeparations;
