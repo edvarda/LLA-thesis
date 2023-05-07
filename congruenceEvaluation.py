@@ -22,11 +22,16 @@ def asNpArraySum(image):
     return np.sum(np.asarray(image))
 
 
-def congruenceScore(V_s, V_c, e_s, e_c):
+def congruenceScore(V_s, V_c, e_s, e_c, saveFalseColor=False):
     numerator = e_c * \
         np.subtract(1, np.clip(np.asarray(e_c-e_s), 0, 1)) * \
         dip.Abs(dip.DotProduct(V_c, V_s))
     denominator = e_c
+    if (saveFalseColor):
+        scorePerPixel = (numerator/denominator)
+        displayImage = dip.ImageDisplay(scorePerPixel, "base")
+        colorMap = dip.ApplyColorMap(displayImage, "diverging")
+        # dip.ImageWrite(colorMap, "colormap.jpg")
     return (asNpArraySum(numerator)/asNpArraySum(denominator))
 
 
@@ -52,7 +57,7 @@ def runTest(preshading, depth, postshading):
     e_s, e_s_post, e_c = E
 
     scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
-    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
+    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c, True)
 
     filename = postshading.removeprefix("./testrenders/")
 
@@ -79,6 +84,7 @@ def printResults(results):
         print(
             f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
 
+
 def perRangePlot(plot, results):
     scaleValues = list({x.get("sigma") for x in results})
     scaleValues.sort()
@@ -93,7 +99,7 @@ def perRangePlot(plot, results):
 
     x = np.arange(len(scaleValues))  # the label locations
     width = 0.30  # the width of the bars
-    
+
     multiplier = 0
     for scaleSpace, congruenceScores in scorePerScaleSpace.items():
         offset = width * multiplier

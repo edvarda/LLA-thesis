@@ -13,4 +13,20 @@ const scaleSpaceTests: TestSuite = {
   ),
 };
 
-export { scaleSpaceTests };
+const strengthTest = (strength: number): Test => ({
+  ...defaultProperties,
+  ...{ localLightAlignment: { testStrength: strength } },
+  testName: `Strength[${strength}]`,
+});
+
+const enhancementStrengthTests: TestSuite = {
+  name: "EnhancementStrengthTests",
+  tests: [
+    strengthTest(0.25),
+    strengthTest(0.5),
+    strengthTest(0.75),
+    strengthTest(1),
+  ],
+};
+
+export { scaleSpaceTests, enhancementStrengthTests };

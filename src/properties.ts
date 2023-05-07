@@ -34,6 +34,7 @@ type Properties = {
     Epsilon?: number;
     Gamma?: number;
     numberOfScales?: number;
+    testStrength?: number;
   };
 };
 
@@ -77,6 +78,7 @@ const defaultProperties: Properties = {
     Epsilon: 1e-5,
     Gamma: 3,
     numberOfScales: 6,
+    testStrength: 0.5,
   },
 };
 
