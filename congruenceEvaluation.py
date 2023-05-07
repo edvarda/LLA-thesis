@@ -87,7 +87,7 @@ def perRangePlot(plot, results):
     scorePerScaleSpace = defaultdict(list)
     for result in results:
         scorePerScaleSpace[result.get("spatial")].append(
-            (result.get("scoreAfter"), result.get("sigma")))
+            (result.get("diff"), result.get("sigma")))
     for scoreByScaleSpace in scorePerScaleSpace.values():
         scoreByScaleSpace.sort(key=lambda x: x[1])
 
@@ -110,7 +110,7 @@ def perRangePlot(plot, results):
     plot.set_title(f'For RangeSigma={results[0].get("range")}')
     plot.set_xticks(x + width, scaleValues)
     plot.legend()
-    plot.set_ylim(0, 1)
+    # plot.set_ylim(0, 1)
 
 
 def runInFolder(folder):
