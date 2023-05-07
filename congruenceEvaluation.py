@@ -85,7 +85,7 @@ def printResults(results):
             f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
 
 
-def perRangePlot(plot, results):
+def strengthPlot(plot, results):
     scaleValues = list({x.get("sigma") for x in results})
     scaleValues.sort()
 
@@ -117,7 +117,7 @@ def perRangePlot(plot, results):
     plot.legend()
 
 
-def strengthPlot(plot, results):
+def perRangePlot(plot, results):
     scaleValues = list({x.get("sigma") for x in results})
     scaleValues.sort()
 
