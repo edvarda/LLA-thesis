@@ -1,12 +1,5 @@
 import { Test, defaultProperties } from "./properties";
 
-const enhancementStrength: (Partial<Test> & { strength: number })[] = [
-  {
-    testName: "Strength[1]",
-    strength: 1,
-  },
-];
-
 const scaleSeparations: Partial<Test>[] = [
   {
     testName: "Scale[1]",

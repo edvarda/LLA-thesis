@@ -47,7 +47,7 @@ type TestSuite = {
 };
 
 const defaultProperties: Properties = {
-  textureResolution: 512,
+  textureResolution: 1024,
   textureResolutionHigh: 1024,
   lightPosition: {
     x: 0,

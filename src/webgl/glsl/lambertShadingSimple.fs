@@ -11,7 +11,7 @@ void main() {
   vec3 normal = unpackRGBToNormal(packedNormal);
   vec3 lightViewSpace = normalize((viewMatrix * vec4(lightDirection, 1.)).xyz);
   if(packedNormal == vec3(0., 0., 0.)) {
-    gl_FragColor.rgb = vec3(0., 0., 1.) * 0.8 + vec3(1.) * 0.5;
+   gl_FragColor.rgb = vec3(1., 1., 1.)*0.3;
   } else {
     gl_FragColor.rgb = ALBEDO * max(dot(normal, lightViewSpace), 0.0);
   }

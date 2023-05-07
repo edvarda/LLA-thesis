@@ -362,11 +362,11 @@ export class LocalLightAlignmentApp {
 
   runPredefinedTests = (testSuite: TestSuite) => {
     const setTestScales = (scalePartial: Partial<Test>, strength: number) => {
-      let scale: Partial<Test> = { ...scalePartial };
+      let scales = { ...scalePartial.localLightAlignment };
       for (let i = 0; i < 6; i++) {
-        scale.localLightAlignment[`Sigma_${i}`] *= strength;
+        scales[`Sigma_${i}`] *= strength;
       }
-      return scale;
+      return scales;
     };
 
     if (!!testSuite.tests) {
@@ -379,20 +379,23 @@ export class LocalLightAlignmentApp {
       let zipFile = new JSZip();
       let firstTest = true;
       for (let testProperties of testSuite.tests) {
+
         this.properties = testProperties;
         this.initializeRenderTargets();
+
+
         for (const scalePartial of savedProperties.sigmaVariations) {
           let testName = testProperties.testName + scalePartial.testName;
+          let scales = setTestScales(scalePartial, testProperties.localLightAlignment.testStrength)
+      
           this.properties = {
             ...this.properties,
             localLightAlignment: {
               ...this.properties.localLightAlignment,
-              ...setTestScales(
-                scalePartial,
-                testProperties.localLightAlignment.testStrength
-              ),
+              ...scales
             },
           };
+          
           this.onGuiChange();
           this.renderImages(
             `${testName}_${this.modelName}`,
@@ -705,7 +708,6 @@ export class LocalLightAlignmentApp {
   }
 
   onGuiChange = () => {
-    console.log(this.properties.bilateralFilter);
     this.postProcessingScene.bilateralFilterMaterial.uniforms.sigmaS.value =
       this.properties.bilateralFilter.SigmaS_individual.SigmaS_0;
     this.postProcessingScene.bilateralFilterMaterial.uniforms.sigmaR.value =
@@ -868,7 +870,8 @@ let properties: Properties = {
   sigmaVariations: scaleSeparations,
 };
 
+
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${scaleSeparations.length}`);
-let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
+let app = new LocalLightAlignmentApp("./models/toxodon.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

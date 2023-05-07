@@ -80,10 +80,10 @@ function getScaleVariationWithMultiplier(multiplier: number) {
 // ];
 
 const spatialVariables: Partial<Test>[] = [
+  getScaleVariationWithMultiplier(1.5),
   getScaleVariationWithMultiplier(1.7),
   getScaleVariationWithMultiplier(2),
   getScaleVariationWithMultiplier(2.3),
-  getScaleVariationWithMultiplier(2.6),
 ];
 
 const rangeVariables: Partial<Test>[] = [
