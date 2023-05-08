@@ -106,69 +106,6 @@ def printResults(results):
         print(f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
 
 
-# def strengthPlot(plot, results):
-#     scaleValues = list({x.get("sigma") for x in results})
-#     scaleValues.sort()
-
-#     scorePerStrength = defaultdict(list)
-#     for result in results:
-#         scorePerStrength[result.get("strength")].append(
-#             (result.get("diff"), result.get("sigma"))
-#         )
-#     for scoreByStrength in scorePerStrength.values():
-#         scoreByStrength.sort(key=lambda x: x[1])
-
-#     x = np.arange(len(scaleValues))  # the label locations
-#     width = 0.15  # the width of the bars
-
-#     multiplier = 0
-#     for strength, congruenceScores in scorePerStrength.items():
-#         offset = width * multiplier
-#         scores = [round(congruenceScore[0], 2) for congruenceScore in congruenceScores]
-#         rects = plot.bar(x + offset, scores, width, label=f"Strength: {strength}")
-#         plot.bar_label(rects, padding=3, rotation=90)
-#         multiplier += 1
-
-#     # Add some text for labels, title and custom x-axis tick labels, etc.
-#     plot.set_ylabel("Congruence score diff")
-#     plot.set_xlabel("Scale(s) used for enhancment")
-#     plot.set_title(f"Score before: {round(results[0].get('scoreBefore'), 2)}")
-#     plot.set_xticks(x + width, scaleValues)
-#     plot.legend()
-
-
-# def perRangePlot(plot, results):
-#     scaleValues = list({x.get("sigma") for x in results})
-#     scaleValues.sort()
-
-#     scorePerScaleSpace = defaultdict(list)
-#     for result in results:
-#         scorePerScaleSpace[result.get("spatial")].append(
-#             (result.get("diff"), result.get("sigma"))
-#         )
-#     for scoreByScaleSpace in scorePerScaleSpace.values():
-#         scoreByScaleSpace.sort(key=lambda x: x[1])
-
-#     x = np.arange(len(scaleValues))  # the label locations
-#     width = 0.15  # the width of the bars
-
-#     multiplier = 0
-#     for scaleSpace, congruenceScores in scorePerScaleSpace.items():
-#         offset = width * multiplier
-#         scores = [round(congruenceScore[0], 2) for congruenceScore in congruenceScores]
-#         rects = plot.bar(x + offset, scores, width, label=f"Scalespace: {scaleSpace}")
-#         plot.bar_label(rects, padding=3, rotation=90)
-#         multiplier += 1
-
-#     # Add some text for labels, title and custom x-axis tick labels, etc.
-#     plot.set_ylabel("Congruence score difference")
-#     plot.set_xlabel("Scale(s) used for enhancment")
-#     plot.set_title(f'For RangeSigma={results[0].get("range")}')
-#     plot.set_xticks(x + width, scaleValues)
-#     plot.legend()
-#     # plot.set_ylim(0, 1)
-
-
 def groupedBarPlot(plot, results, xValue, yValue, barGroupValue, title, yLabel, xLabel):
     scaleValues = list({x.get(xValue) for x in results})
     scaleValues.sort()
@@ -209,6 +146,7 @@ def getGroupedResults(results, dictStringToGroupOn):
 
 
 def saveFig(path):
+    print("saving fig")
     figure = plt.gcf()  # get current figure
     figure.set_size_inches(20, 14)
     plt.savefig(path, bbox_inches="tight", dpi=100)
@@ -230,7 +168,7 @@ def setYlimits(plot, results, key):
     plot.set_ylim(round_down(minValue, 1), round_up(maxValue, 1))
 
 
-def runInFolder(folder, type):
+def runTestsInFolder(folder):
     for filename in folder.glob("./*.png"):
         saveAsGrayscaleTIFF(filename)
     preshading = str(folder / "./preShading.tiff")
@@ -238,48 +176,63 @@ def runInFolder(folder, type):
     testImages = [str(x) for x in folder.glob("./*_postShading.tiff")]
     results = [runTest(preshading, depth, testImage) for testImage in testImages]
     results.sort(key=lambda result: result.get("file"))
+    return results
 
+
+def createStrengthTestPlot(folder, results):
     fig, ax = plt.subplots(2, 2)
-    if type == "scalespace":
-        resultGroups = getGroupedResults(results, "range")
-        for (k, v), plot in zip(resultGroups.items(), ax.flat):
-            setYlimits(plot, results, "diff")
-            title = f"For RangeSigma={k}"
-            groupedBarPlot(
-                plot,
-                v,
-                "sigma",
-                "diff",
-                "spatial",
-                title,
-                "Congruence score difference",
-                "Scale(s) used for enhancment",
-            )
-        saveFig((folder / "scalePlot.png"))
-    elif type == "strength":
-        resultGroups = getGroupedResults(results, "spatial")
-        for (k, v), plot in zip(resultGroups.items(), ax.flat):
-            setYlimits(plot, results, "diff")
-            title = f"For Scale Space={k}"
-            groupedBarPlot(
-                plot,
-                v,
-                "sigma",
-                "diff",
-                "strength",
-                title,
-                "Congruence score difference",
-                "Scale(s) used for enhancment",
-            )
-        saveFig((folder / "strengthPlot.png"))
+    resultGroups = getGroupedResults(results, "spatial")
+    for (k, v), plot in zip(resultGroups.items(), ax.flat):
+        setYlimits(plot, results, "diff")
+        title = f"For Scale Space={k}"
+        groupedBarPlot(
+            plot,
+            v,
+            "sigma",
+            "diff",
+            "strength",
+            title,
+            "Congruence score difference",
+            "Scale(s) used for enhancment",
+        )
+    saveFig(
+        (
+            folder.parents[0]
+            / f"{str(folder.name).removeprefix('StrengthTests_')}_strengthPlot.png"
+        )
+    )
+
+
+def createScaleSpaceTestPlot(folder, results):
+    fig, ax = plt.subplots(2, 2)
+    resultGroups = getGroupedResults(results, "range")
+    for (k, v), plot in zip(resultGroups.items(), ax.flat):
+        setYlimits(plot, results, "diff")
+        title = f"For RangeSigma={k}"
+        groupedBarPlot(
+            plot,
+            v,
+            "sigma",
+            "diff",
+            "spatial",
+            title,
+            "Congruence score difference",
+            "Scale(s) used for enhancment",
+        )
+    saveFig(
+        (
+            folder.parents[0]
+            / f"{str(folder.name).removeprefix('ScaleSpaceTests_')}_scalePlot.png"
+        )
+    )
 
 
 dir = sys.argv[1]
 for path in Path(dir).iterdir():
     if path.is_dir():
+        results = runTestsInFolder(path)
+        print(f"Processing tests in {path}")
         if str(path.name).startswith("StrengthTests"):
-            print(f"Running strength tests in {path}")
-            runInFolder(path, type)
+            createStrengthTestPlot(path, results)
         elif str(path.name).startswith("ScaleSpaceTests"):
-            print(f"Running scale space tests in {path}")
-            runInFolder(path, type)
+            createScaleSpaceTestPlot(path, results)
