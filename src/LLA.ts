@@ -813,13 +813,6 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
   lightFolder.add(properties.lightPosition, "z", -1, 1).onChange(onGuiChange);
   const filterFolder = gui.addFolder("Bilateral Filter");
 
-  // filterFolder
-  //   .add(properties.bilateralFilter, "SigmaS", 0, 10)
-  //   .onChange(onGuiChange);
-  // filterFolder
-  //   .add(properties.bilateralFilter, "SigmaSMultiplier", 1, 2.5)
-  //   .onChange(onGuiChange);
-
   for (let i = 0; i < properties.localLightAlignment.numberOfScales; i++) {
     filterFolder
       .add(properties.bilateralFilter.SigmaS_individual, `SigmaS_${i}`, 1, 128)
@@ -873,5 +866,5 @@ let properties: Properties = {
 
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${scaleSeparations.length}`);
-let app = new LocalLightAlignmentApp("./models/toxodon.obj", properties);
+let app = new LocalLightAlignmentApp("./models/map.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

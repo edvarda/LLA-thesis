@@ -1,18 +1,4 @@
-import { Test, TestSuite, defaultProperties } from "./properties";
-
-const template = {
-  testName: "SigmaSpatial[2..64]",
-  bilateralFilter: {
-    SigmaS_individual: {
-      SigmaS_0: 2,
-      SigmaS_1: 4,
-      SigmaS_2: 8,
-      SigmaS_3: 16,
-      SigmaS_4: 32,
-      SigmaS_5: 64,
-    },
-  },
-};
+import { Test } from "./properties";
 
 function getScaleVariationWithMultiplier(multiplier: number) {
   let parameters = {
@@ -37,48 +23,6 @@ function getScaleVariationWithMultiplier(multiplier: number) {
   return parameters;
 }
 
-// const spatialVariables: Partial<Test>[] = [
-//   {
-//     testName: "SigmaSpatial[2..64]",
-//     bilateralFilter: {
-//       SigmaS_individual: {
-//         SigmaS_0: 2,
-//         SigmaS_1: 4,
-//         SigmaS_2: 8,
-//         SigmaS_3: 16,
-//         SigmaS_4: 32,
-//         SigmaS_5: 64,
-//       },
-//     },
-//   },
-//   {
-//     testName: "SigmaSpatial[4..4]",
-//     bilateralFilter: {
-//       SigmaS_individual: {
-//         SigmaS_0: 4,
-//         SigmaS_1: 4,
-//         SigmaS_2: 4,
-//         SigmaS_3: 4,
-//         SigmaS_4: 4,
-//         SigmaS_5: 4,
-//       },
-//     },
-//   },
-//   {
-//     testName: "SigmaSpatial[24..24]",
-//     bilateralFilter: {
-//       SigmaS_individual: {
-//         SigmaS_0: 24,
-//         SigmaS_1: 24,
-//         SigmaS_2: 24,
-//         SigmaS_3: 24,
-//         SigmaS_4: 24,
-//         SigmaS_5: 24,
-//       },
-//     },
-//   },
-// ];
-
 const spatialVariables: Partial<Test>[] = [
   getScaleVariationWithMultiplier(1.5),
   getScaleVariationWithMultiplier(1.7),
@@ -94,21 +38,21 @@ const rangeVariables: Partial<Test>[] = [
     },
   },
   {
-    testName: "SigmaRange[0.05]",
-    bilateralFilter: {
-      SigmaR: 0.05,
-    },
-  },
-  {
     testName: "SigmaRange[0.01]",
     bilateralFilter: {
       SigmaR: 0.01,
     },
   },
   {
-    testName: "SigmaRange[0.005]",
+    testName: "SigmaRange[0.001]",
     bilateralFilter: {
-      SigmaR: 0.005,
+      SigmaR: 0.001,
+    },
+  },
+  {
+    testName: "SigmaRange[0.0001]",
+    bilateralFilter: {
+      SigmaR: 0.0001,
     },
   },
 ];
