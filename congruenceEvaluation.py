@@ -6,9 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from pathlib import Path
+import math
 
 
 def saveAsGrayscaleTIFF(imagePath):
+    if Path(imagePath.with_suffix(".tiff")).is_file():  # If it already exists, return
+        return
     pngImage = Image.open(imagePath)
     grayscale = pngImage.convert("L")
     grayscale.save(imagePath.with_suffix(".tiff"))
@@ -165,6 +168,7 @@ def perRangePlot(plot, results):
     plot.legend()
     # plot.set_ylim(0, 1)
 
+
 def groupedBarPlot(plot, results, xValue, yValue, barGroupValue, title, yLabel, xLabel):
     scaleValues = list({x.get(xValue) for x in results})
     scaleValues.sort()
@@ -200,13 +204,40 @@ def groupedBarPlot(plot, results, xValue, yValue, barGroupValue, title, yLabel, 
 def getGroupedResults(results, dictStringToGroupOn):
     resultGroups = defaultdict(list)
     for result in results:
-            resultGroups[result.get(dictStringToGroupOn)].append(result)
+        resultGroups[result.get(dictStringToGroupOn)].append(result)
     return resultGroups
+
 
 def saveFig(path):
     figure = plt.gcf()  # get current figure
     figure.set_size_inches(20, 14)
     plt.savefig(path, bbox_inches="tight", dpi=100)
+
+
+def round_up(n, decimals=0):
+    multiplier = 10**decimals
+    return math.ceil(n * multiplier) / multiplier
+
+
+def round_down(n, decimals=0):
+    multiplier = 10**decimals
+    return math.floor(n * multiplier) / multiplier
+
+
+def getMaxYLimValue(results, key):
+    maxValue = max([x.get(key) for x in results])
+    return round_up(maxValue, 1)
+
+
+def getMinYLimValue(results, key):
+    maxValue = min([x.get(key) for x in results])
+    return round_up(maxValue, 1)
+
+
+def setYlimits(plot, results, key):
+    maxValue = max([x.get(key) for x in results])
+    minValue = min([x.get(key) for x in results])
+    plot.set_ylim(round_down(minValue, 1), round_up(maxValue, 1))
 
 
 def runInFolder(folder, type):
@@ -218,20 +249,38 @@ def runInFolder(folder, type):
     results = [runTest(preshading, depth, testImage) for testImage in testImages]
     results.sort(key=lambda result: result.get("file"))
 
+    fig, ax = plt.subplots(2, 2)
     if type == "scalespace":
         resultGroups = getGroupedResults(results, "range")
-        fig, ax = plt.subplots(2, 2)
         for (k, v), plot in zip(resultGroups.items(), ax.flat):
-            title = f'For RangeSigma={k}'
-            groupedBarPlot(plot, v,"sigma","diff","spatial", title,"Congruence score difference","Scale(s) used for enhancment")
+            setYlimits(plot, results, "diff")
+            title = f"For RangeSigma={k}"
+            groupedBarPlot(
+                plot,
+                v,
+                "sigma",
+                "diff",
+                "spatial",
+                title,
+                "Congruence score difference",
+                "Scale(s) used for enhancment",
+            )
         saveFig((folder / "scalePlot.png"))
     elif type == "strength":
         resultGroups = getGroupedResults(results, "spatial")
-        fig, ax = plt.subplots(2, 2)
         for (k, v), plot in zip(resultGroups.items(), ax.flat):
-            title = f'For Scale Space={k}'
-            groupedBarPlot(plot, v,"sigma","diff","strength", title,"Congruence score difference","Scale(s) used for enhancment")
-        # strengthPlot(ax, results)
+            setYlimits(plot, results, "diff")
+            title = f"For Scale Space={k}"
+            groupedBarPlot(
+                plot,
+                v,
+                "sigma",
+                "diff",
+                "strength",
+                title,
+                "Congruence score difference",
+                "Scale(s) used for enhancment",
+            )
         saveFig((folder / "strengthPlot.png"))
 
 
