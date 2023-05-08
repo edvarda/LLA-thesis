@@ -361,6 +361,13 @@ export class LocalLightAlignmentApp {
   };
 
   runPredefinedTests = (testSuite: TestSuite) => {
+    let filenameSuffix = prompt(
+      `Provide a suffix for the filename if you want to run the ${testSuite.tests.length} tests in ${testSuite.name}`,
+      `${this.modelName}`
+    );
+    if (filenameSuffix == null || filenameSuffix == "")
+      return
+
     const setTestScales = (scalePartial: Partial<Test>, strength: number) => {
       let scales = { ...scalePartial.localLightAlignment };
       for (let i = 0; i < 6; i++) {
@@ -407,7 +414,7 @@ export class LocalLightAlignmentApp {
       }
       this.properties = savedProperties;
       zipFile.generateAsync({ type: "blob" }).then(function (content) {
-        saveAs(content, `${testSuite.name}.zip`);
+        saveAs(content, `${testSuite.name}_${filenameSuffix}.zip`);
       });
     }
   };
