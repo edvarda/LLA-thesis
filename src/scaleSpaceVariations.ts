@@ -57,12 +57,12 @@ const rangeVariables: Partial<Test>[] = [
   },
 ];
 
-const scaleSpaceVariations: Partial<Test>[] = [];
+const scaleSpaceVariationsWithRange: Partial<Test>[] = [];
 
 for (const spatialTestCase of spatialVariables) {
   for (const rangeTestCase of rangeVariables) {
     let testName = spatialTestCase.testName + rangeTestCase.testName;
-    scaleSpaceVariations.push({
+    scaleSpaceVariationsWithRange.push({
       bilateralFilter: {
         ...spatialTestCase.bilateralFilter,
         ...rangeTestCase.bilateralFilter,
@@ -72,4 +72,4 @@ for (const spatialTestCase of spatialVariables) {
   }
 }
 
-export default scaleSpaceVariations;
+export { scaleSpaceVariationsWithRange, spatialVariables };

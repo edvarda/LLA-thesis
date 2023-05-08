@@ -1,10 +1,13 @@
-import scaleSpaceVariations from "./scaleSpaceVariations";
+import {
+  scaleSpaceVariationsWithRange,
+  spatialVariables,
+} from "./scaleSpaceVariations";
 import gammaVariations from "./gammaVariations";
 import { Test, TestSuite, defaultProperties } from "./properties";
 
 const scaleSpaceTests: TestSuite = {
   name: "ScaleSpaceTests",
-  tests: scaleSpaceVariations.map(
+  tests: scaleSpaceVariationsWithRange.map(
     (variables: Partial<Test>): Test => ({
       ...defaultProperties,
       ...variables,
@@ -13,21 +16,36 @@ const scaleSpaceTests: TestSuite = {
   ),
 };
 
-const strengthTest = (strength: number): Test => ({
-  ...defaultProperties,
-  localLightAlignment: { ...defaultProperties.localLightAlignment, testStrength: strength } ,
-  testName: `Strength[${strength}]`,
-});
+const strengthTest = (strength: number): Test[] => {
+  const strengthTests: Test[] = [];
+  for (const spatialTestCase of spatialVariables) {
+    let testName = spatialTestCase.testName + `Strength[${strength}]`;
+    let test: Test = {
+      ...defaultProperties,
+      bilateralFilter: {
+        ...defaultProperties.bilateralFilter,
+        ...spatialTestCase.bilateralFilter,
+      },
+      localLightAlignment: {
+        ...defaultProperties.localLightAlignment,
+        testStrength: strength,
+      },
+      testName: testName,
+    };
+    strengthTests.push(test);
+  }
+  return strengthTests;
+};
 
 const enhancementStrengthTests: TestSuite = {
   name: "EnhancementStrengthTests",
   tests: [
-    strengthTest(0.25),
-    strengthTest(0.5),
-    strengthTest(0.75),
-    strengthTest(1),
+    ...strengthTest(0.25),
+    ...strengthTest(0.5),
+    ...strengthTest(0.75),
+    ...strengthTest(1),
   ],
 };
 
-console.log(enhancementStrengthTests)
+console.log(enhancementStrengthTests);
 export { scaleSpaceTests, enhancementStrengthTests };
