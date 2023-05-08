@@ -165,6 +165,43 @@ def perRangePlot(plot, results):
     plot.legend()
     # plot.set_ylim(0, 1)
 
+def groupedBarPlot(plot, results, xValue, yValue, barGroupValue, title, yLabel, xLabel):
+    scaleValues = list({x.get(xValue) for x in results})
+    scaleValues.sort()
+
+    scorePerScaleSpace = defaultdict(list)
+    for result in results:
+        scorePerScaleSpace[result.get(barGroupValue)].append(
+            (result.get(yValue), result.get(xValue))
+        )
+    for scoreByScaleSpace in scorePerScaleSpace.values():
+        scoreByScaleSpace.sort(key=lambda x: x[1])
+
+    x = np.arange(len(scaleValues))  # the label locations
+    width = 0.15  # the width of the bars
+
+    multiplier = 0
+    for scaleSpace, congruenceScores in scorePerScaleSpace.items():
+        offset = width * multiplier
+        scores = [round(congruenceScore[0], 2) for congruenceScore in congruenceScores]
+        rects = plot.bar(x + offset, scores, width, label=f"Scalespace: {scaleSpace}")
+        plot.bar_label(rects, padding=3, rotation=90)
+        multiplier += 1
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    plot.set_ylabel(yLabel)
+    plot.set_xlabel(xLabel)
+    plot.set_title(title)
+    plot.set_xticks(x + width, scaleValues)
+    plot.legend()
+    # plot.set_ylim(0, 1)
+
+
+def getGroupedResults(results, dictStringToGroupOn):
+    resultGroups = defaultdict(list)
+    for result in results:
+            resultGroups[result.get(dictStringToGroupOn)].append(result)
+    return resultGroups
 
 def saveFig(path):
     figure = plt.gcf()  # get current figure
@@ -182,23 +219,20 @@ def runInFolder(folder, type):
     results.sort(key=lambda result: result.get("file"))
 
     if type == "scalespace":
-        resultGroups = defaultdict(list)
-        for result in results:
-            resultGroups[result.get("range")].append(result)
-
-        manager = plt.get_current_fig_manager()
-        manager.resize(*manager.window.maxsize())
-        plt.figure(figsize=(16, 10))
+        resultGroups = getGroupedResults(results, "range")
         fig, ax = plt.subplots(2, 2)
         for (k, v), plot in zip(resultGroups.items(), ax.flat):
-            perRangePlot(plot, v)
+            title = f'For RangeSigma={k}'
+            groupedBarPlot(plot, v,"sigma","diff","spatial", title,"Congruence score difference","Scale(s) used for enhancment")
         saveFig((folder / "scalePlot.png"))
-        plt.show(block=True)
     elif type == "strength":
-        fig, ax = plt.subplots()
-        strengthPlot(ax, results)
+        resultGroups = getGroupedResults(results, "spatial")
+        fig, ax = plt.subplots(2, 2)
+        for (k, v), plot in zip(resultGroups.items(), ax.flat):
+            title = f'For Scale Space={k}'
+            groupedBarPlot(plot, v,"sigma","diff","strength", title,"Congruence score difference","Scale(s) used for enhancment")
+        # strengthPlot(ax, results)
         saveFig((folder / "strengthPlot.png"))
-        plt.show(block=True)
 
 
 dir = sys.argv[1]
