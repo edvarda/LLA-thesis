@@ -15,9 +15,10 @@ void main() {
   vec3 normal = unpackRGBToNormal(packedNormal);
   vec3 lightDirection = getUnpackedLightDirection(tLightDirection);
   if(packedNormal == vec3(0., 0., 0.)) {
-    gl_FragColor.rgb = vec3(1., 1., 1.)*0.3;
+    gl_FragColor.rgb = vec3(0);
+    gl_FragColor.a = 0.0;
   } else {
     gl_FragColor.rgb = ALBEDO * max(dot(normal, lightDirection), 0.0);
+    gl_FragColor.a = 1.0;
   }
-  gl_FragColor.a = 1.0;
 }
