@@ -38,7 +38,7 @@ const strengthTest = (strength: number): Test[] => {
 };
 
 const enhancementStrengthTests: TestSuite = {
-  name: "EnhancementStrengthTests",
+  name: "StrengthTests",
   tests: [
     ...strengthTest(0.25),
     ...strengthTest(0.5),
