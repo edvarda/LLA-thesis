@@ -75,10 +75,10 @@ const defaultProperties: Properties = {
     Sigma_4: 0.5,
     Sigma_5: 0.5,
     Sigma_all: 0.5,
-    Epsilon: 1e-5,
+    Epsilon: 5e-6,
     Gamma: 3,
     numberOfScales: 6,
-    testStrength: 0.5,
+    testStrength: 1,
   },
 };
 
