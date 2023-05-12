@@ -31,16 +31,52 @@ def congruenceScore(V_s, V_c, e_s, e_c, saveFalseColor=False):
         * np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
         * dip.Abs(dip.DotProduct(V_c, V_s))
     )
+
     denominator = e_c
     if saveFalseColor:
         scorePerPixel = numerator / denominator
         displayImage = dip.ImageDisplay(scorePerPixel, "base")
         colorMap = dip.ApplyColorMap(displayImage, "diverging")
-        # dip.ImageWrite(colorMap, "colormap.jpg")
-    # c = numerator / denominator
-    # c.Show()
-    # wait = input("Press Enter to continue.")
+
     return asNpArraySum(numerator) / asNpArraySum(denominator)
+
+
+def congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c):
+    e_s.Show()
+    wait = input("Press Enter to continue.")
+    e_c.Show()
+    wait = input("Press Enter to continue.")
+
+    def numerator(V_s, e_s, V_c, e_c):
+        return (
+            e_c
+            * np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
+            * dip.Abs(dip.DotProduct(V_c, V_s))
+        )
+
+    denominator = e_c
+    pre = numerator(V_s, e_s, V_c, e_c) / denominator
+    post = numerator(V_s_post, e_s_post, V_c, e_c) / denominator
+
+    preDisplay = dip.ImageDisplay(pre, "base")
+    preColor = dip.ApplyColorMap(preDisplay, "diverging")
+    preColor.Show()
+    wait = input("Press Enter to continue.")
+
+    postDisplay = dip.ImageDisplay(post, "base")
+    postColor = dip.ApplyColorMap(postDisplay, "diverging")
+    postColor.Show()
+    wait = input("Press Enter to continue.")
+
+    result = post - pre
+    resDisplay = dip.ImageDisplay(result, "base")
+    resultColor = dip.ApplyColorMap(resDisplay, "diverging")
+    resultColor.Show()
+
+    # dip.ImageWrite(colorMap, "colormap.jpg")
+
+    wait = input("Press Enter to continue.")
+    return
 
 
 def runTest(preshading, depth, postshading):
@@ -66,7 +102,9 @@ def runTest(preshading, depth, postshading):
     e_s, e_s_post, e_c = E
 
     scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
-    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c, True)
+    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
+
+    congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c)
 
     filename = postshading.removeprefix("./testrenders/")
 
@@ -106,7 +144,9 @@ def printResults(results):
         print(f"Score – before: {x.get('scoreBefore')}, after: {x.get('scoreAfter')}")
 
 
-def groupedBarPlot(plot, results, xValue, yValue, barGroupValue, title, yLabel, xLabel):
+def groupedBarPlot(
+    plot, results, xValue, yValue, barGroupValue, legendTitle, title, yLabel, xLabel
+):
     scaleValues = list({x.get(xValue) for x in results})
     scaleValues.sort()
 
@@ -125,7 +165,9 @@ def groupedBarPlot(plot, results, xValue, yValue, barGroupValue, title, yLabel, 
     for scaleSpace, congruenceScores in scorePerScaleSpace.items():
         offset = width * multiplier
         scores = [round(congruenceScore[0], 2) for congruenceScore in congruenceScores]
-        rects = plot.bar(x + offset, scores, width, label=f"Scalespace: {scaleSpace}")
+        rects = plot.bar(
+            x + offset, scores, width, label=f"{legendTitle}: {scaleSpace}"
+        )
         plot.bar_label(rects, padding=3, rotation=90)
         multiplier += 1
 
@@ -185,12 +227,14 @@ def createStrengthTestPlot(folder, results):
     for (k, v), plot in zip(resultGroups.items(), ax.flat):
         setYlimits(plot, results, "diff")
         title = f"For Scale Space={k}"
+        legendTitle = "Enhanchment strength (sigma parameter)"
         groupedBarPlot(
             plot,
             v,
             "sigma",
             "diff",
             "strength",
+            legendTitle,
             title,
             "Congruence score difference",
             "Scale(s) used for enhancment",
@@ -205,16 +249,18 @@ def createStrengthTestPlot(folder, results):
 
 def createScaleSpaceTestPlot(folder, results):
     fig, ax = plt.subplots(2, 2)
-    resultGroups = getGroupedResults(results, "range")
+    resultGroups = getGroupedResults(results, "spatial")
     for (k, v), plot in zip(resultGroups.items(), ax.flat):
         setYlimits(plot, results, "diff")
-        title = f"For RangeSigma={k}"
+        title = f"For Spatial kernel sizes={k}"
+        legendTitle = "Range kernel sizes"
         groupedBarPlot(
             plot,
             v,
             "sigma",
             "diff",
-            "spatial",
+            "range",
+            legendTitle,
             title,
             "Congruence score difference",
             "Scale(s) used for enhancment",
