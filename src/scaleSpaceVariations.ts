@@ -24,13 +24,19 @@ function getScaleVariationWithMultiplier(multiplier: number) {
 }
 
 const spatialVariables: Partial<Test>[] = [
-  getScaleVariationWithMultiplier(1.5),
-  // getScaleVariationWithMultiplier(1.7),
+  getScaleVariationWithMultiplier(1.4),
+  getScaleVariationWithMultiplier(1.7),
   getScaleVariationWithMultiplier(2),
-  // getScaleVariationWithMultiplier(2.3),
+  getScaleVariationWithMultiplier(2.3),
 ];
 
 const rangeVariables: Partial<Test>[] = [
+  // {
+  //   testName: "SigmaRange[0.5]",
+  //   bilateralFilter: {
+  //     SigmaR: 0.5,
+  //   },
+  // },
   {
     testName: "SigmaRange[0.1]",
     bilateralFilter: {
@@ -55,18 +61,18 @@ const rangeVariables: Partial<Test>[] = [
       SigmaR: 0.005,
     },
   },
-  {
-    testName: "SigmaRange[0.0001]",
-    bilateralFilter: {
-      SigmaR: 0.0001,
-    },
-  },
-  {
-    testName: "SigmaRange[0.00005]",
-    bilateralFilter: {
-      SigmaR: 0.00005,
-    },
-  },
+  // {
+  //   testName: "SigmaRange[0.001]",
+  //   bilateralFilter: {
+  //     SigmaR: 0.001,
+  //   },
+  // },
+  // {
+  //   testName: "SigmaRange[0.0005]",
+  //   bilateralFilter: {
+  //     SigmaR: 0.0005,
+  //   },
+  // },
 ];
 
 const scaleSpaceVariationsWithRange: Partial<Test>[] = [];
