@@ -47,5 +47,5 @@ const enhancementStrengthTests: TestSuite = {
   ],
 };
 
-console.log(enhancementStrengthTests);
+console.log(scaleSpaceTests);
 export { scaleSpaceTests, enhancementStrengthTests };

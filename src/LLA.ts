@@ -288,6 +288,7 @@ export class LocalLightAlignmentApp {
       precision: "highp",
     });
 
+
     this.postProcessingScene = new PostProcessingScene(this.properties);
     this.initializeRenderTargets();
     this.setupHTLMElements();
@@ -873,5 +874,5 @@ let properties: Properties = {
 
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${scaleSeparations.length}`);
-let app = new LocalLightAlignmentApp("./models/helmet.obj", properties);
+let app = new LocalLightAlignmentApp("./models/david.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);
