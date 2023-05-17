@@ -25,58 +25,76 @@ def asNpArraySum(image):
     return np.sum(np.asarray(image))
 
 
-def congruenceScore(V_s, V_c, e_s, e_c, saveFalseColor=False):
-    numerator = (
-        e_c
-        * np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
+def congruenceScore(V_s, V_c, e_s, e_c, mask):
+    score = (
+        np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
         * dip.Abs(dip.DotProduct(V_c, V_s))
     )
 
-    denominator = e_c
-    if saveFalseColor:
-        scorePerPixel = numerator / denominator
-        displayImage = dip.ImageDisplay(scorePerPixel, "base")
-        colorMap = dip.ApplyColorMap(displayImage, "diverging")
-
-    return asNpArraySum(numerator) / asNpArraySum(denominator)
+    e_c_Masked = e_c
+    e_c_Masked[mask == 0] = 0
+    return np.average(score,weights=(e_c_Masked))
 
 
-def congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c):
-    e_s.Show()
-    wait = input("Press Enter to continue.")
-    e_c.Show()
-    wait = input("Press Enter to continue.")
+# def congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c, mask):
+#     def numerator(V_s, e_s, V_c, e_c):
+#         return (
+#             e_c
+#             * np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
+#             * dip.Abs(dip.DotProduct(V_c, V_s))
+#         )
 
-    def numerator(V_s, e_s, V_c, e_c):
-        return (
-            e_c
-            * np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
-            * dip.Abs(dip.DotProduct(V_c, V_s))
-        )
+#     denominator = e_c
 
-    denominator = e_c
-    pre = numerator(V_s, e_s, V_c, e_c) / denominator
-    post = numerator(V_s_post, e_s_post, V_c, e_c) / denominator
+#     postNum = numerator(V_s_post, e_s_post, V_c, e_c)
+#     preNum = numerator(V_s, e_s, V_c, e_c)
 
-    preDisplay = dip.ImageDisplay(pre, "base")
-    preColor = dip.ApplyColorMap(preDisplay, "diverging")
-    preColor.Show()
-    wait = input("Press Enter to continue.")
+#     myThing = asNpArraySum(postNum) / asNpArraySum(denominator)
 
-    postDisplay = dip.ImageDisplay(post, "base")
-    postColor = dip.ApplyColorMap(postDisplay, "diverging")
-    postColor.Show()
-    wait = input("Press Enter to continue.")
+#     score = (np.subtract(1, np.clip(np.asarray(e_c - e_s_post), 0, 1))
+#             * dip.Abs(dip.DotProduct(V_c, V_s_post)))
+#     test = postNum/denominator
+#     testpre = preNum/denominator
+#     test[mask == 0] = 0
+#     testpre[mask == 0] = 0
 
-    result = post - pre
-    resDisplay = dip.ImageDisplay(result, "base")
-    resultColor = dip.ApplyColorMap(resDisplay, "diverging")
-    resultColor.Show()
+#     # testpre.Show()
+#     # wait = input("testpre (enter)")
+#     test.Show()
+#     wait = input("score (enter)")
+#     # wait = input("testpost (enter)")
+#     # testdiff = test-testpre
+#     # testdiff.Show()
+#     # wait = input("testdiff (enter)")
+#     e_c[mask == 0] = 0
+#     e_c.Show()
+#     wait = input("shapeflow magnitudes (enter)")
+#     e_s[mask == 0] = 0
+#     e_s.Show()
+#     wait = input("shadingflow magnitudes (enter)")
 
-    # dip.ImageWrite(colorMap, "colormap.jpg")
+#     V_s[mask == 0] = 0
+#     V_s.Show()
+#     wait = input("shadingflow directions (enter)")
 
-    wait = input("Press Enter to continue.")
-    return
+#     V_c[mask == 0] = 0
+#     V_c.Show()
+#     wait = input("shapeflow directions (enter)")
+
+#     hisThing = np.average(score,weights=(e_c))
+
+#     print(f"myThing {myThing}")
+#     print(f"hisThing: {hisThing}")
+#     wait = input("Press Enter to continue.")
+
+#     # result = post - pre
+#     # resDisplay = dip.ImageDisplay(result, "base")
+#     # resultColor = dip.ApplyColorMap(resDisplay, "diverging")
+#     # resultColor.Show()
+
+#     # dip.ImageWrite(colorMap, "colormap.jpg")
+
+#     return
 
 
 def runTest(preshading, depth, postshading):
@@ -86,7 +104,6 @@ def runTest(preshading, depth, postshading):
 
     V = []
     E = []
-
     for colorImage in [shading_pre, shading_post, depth]:
         scalarImg = dip.ColorSpaceManager.Convert(colorImage, "gray")
         structureTensor = dip.StructureTensor(scalarImg)
@@ -94,17 +111,18 @@ def runTest(preshading, depth, postshading):
         v = dip.LargestEigenvector(structureTensor)
         eigenvalues = dip.Eigenvalues(structureTensor)
         e = dip.SumTensorElements(eigenvalues) / 2
-
         V.append(v)
         E.append(e)
 
     V_s, V_s_post, V_c = V
     e_s, e_s_post, e_c = E
 
+    mask = dip.ColorSpaceManager.Convert(depth, "gray") > 0
     scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
     scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
 
-    congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c)
+
+    # congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c, mask)
 
     filename = postshading.removeprefix("./testrenders/")
 
