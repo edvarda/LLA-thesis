@@ -8,8 +8,6 @@ const scaleSeparations: Partial<Test>[] = [
       Sigma_1: 0,
       Sigma_2: 0,
       Sigma_3: 0,
-      Sigma_4: 0,
-      Sigma_5: 0,
     },
   },
   {
@@ -19,8 +17,6 @@ const scaleSeparations: Partial<Test>[] = [
       Sigma_1: 1,
       Sigma_2: 0,
       Sigma_3: 0,
-      Sigma_4: 0,
-      Sigma_5: 0,
     },
   },
   {
@@ -30,8 +26,6 @@ const scaleSeparations: Partial<Test>[] = [
       Sigma_1: 0,
       Sigma_2: 1,
       Sigma_3: 0,
-      Sigma_4: 0,
-      Sigma_5: 0,
     },
   },
   {
@@ -41,30 +35,6 @@ const scaleSeparations: Partial<Test>[] = [
       Sigma_1: 0,
       Sigma_2: 0,
       Sigma_3: 1,
-      Sigma_4: 0,
-      Sigma_5: 0,
-    },
-  },
-  {
-    testName: "Scale[5]",
-    localLightAlignment: {
-      Sigma_0: 0,
-      Sigma_1: 0,
-      Sigma_2: 0,
-      Sigma_3: 0,
-      Sigma_4: 1,
-      Sigma_5: 0,
-    },
-  },
-  {
-    testName: "Scale[6]",
-    localLightAlignment: {
-      Sigma_0: 0,
-      Sigma_1: 0,
-      Sigma_2: 0,
-      Sigma_3: 0,
-      Sigma_4: 0,
-      Sigma_5: 1,
     },
   },
   {
@@ -72,10 +42,8 @@ const scaleSeparations: Partial<Test>[] = [
     localLightAlignment: {
       Sigma_0: 1,
       Sigma_1: 1,
-      Sigma_2: 1,
+      Sigma_2: 0,
       Sigma_3: 0,
-      Sigma_4: 0,
-      Sigma_5: 0,
     },
   },
   {
@@ -83,10 +51,8 @@ const scaleSeparations: Partial<Test>[] = [
     localLightAlignment: {
       Sigma_0: 0,
       Sigma_1: 0,
-      Sigma_2: 0,
+      Sigma_2: 1,
       Sigma_3: 1,
-      Sigma_4: 1,
-      Sigma_5: 1,
     },
   },
   {
@@ -96,8 +62,6 @@ const scaleSeparations: Partial<Test>[] = [
       Sigma_1: 1,
       Sigma_2: 1,
       Sigma_3: 1,
-      Sigma_4: 1,
-      Sigma_5: 1,
     },
   },
 ];

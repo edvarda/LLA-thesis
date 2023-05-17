@@ -150,16 +150,12 @@ class PostProcessingScene {
         scale2: { value: null },
         scale3: { value: null },
         scale4: { value: null },
-        scale5: { value: null },
-        scale6: { value: null },
         sigma: {
           value: [
             properties.localLightAlignment.Sigma_0,
             properties.localLightAlignment.Sigma_1,
             properties.localLightAlignment.Sigma_2,
             properties.localLightAlignment.Sigma_3,
-            properties.localLightAlignment.Sigma_4,
-            properties.localLightAlignment.Sigma_5,
           ],
         },
         gamma: { value: properties.localLightAlignment.Gamma },
@@ -288,7 +284,6 @@ export class LocalLightAlignmentApp {
       precision: "highp",
     });
 
-
     this.postProcessingScene = new PostProcessingScene(this.properties);
     this.initializeRenderTargets();
     this.setupHTLMElements();
@@ -366,8 +361,7 @@ export class LocalLightAlignmentApp {
       `Provide a suffix for the filename if you want to run the ${testSuite.tests.length} tests in ${testSuite.name}`,
       `${this.modelName}`
     );
-    if (filenameSuffix == null || filenameSuffix == "")
-      return
+    if (filenameSuffix == null || filenameSuffix == "") return;
 
     const setTestScales = (scalePartial: Partial<Test>, strength: number) => {
       let scales = { ...scalePartial.localLightAlignment };
@@ -387,23 +381,24 @@ export class LocalLightAlignmentApp {
       let zipFile = new JSZip();
       let firstTest = true;
       for (let testProperties of testSuite.tests) {
-
         this.properties = testProperties;
         this.initializeRenderTargets();
 
-
         for (const scalePartial of savedProperties.sigmaVariations) {
           let testName = testProperties.testName + scalePartial.testName;
-          let scales = setTestScales(scalePartial, testProperties.localLightAlignment.testStrength)
-      
+          let scales = setTestScales(
+            scalePartial,
+            testProperties.localLightAlignment.testStrength
+          );
+
           this.properties = {
             ...this.properties,
             localLightAlignment: {
               ...this.properties.localLightAlignment,
-              ...scales
+              ...scales,
             },
           };
-          
+
           this.onGuiChange();
           this.renderImages(
             `${testName}_${this.modelName}`,
@@ -474,7 +469,6 @@ export class LocalLightAlignmentApp {
       this.filterPassTargets[1].texture,
       this.filterPassTargets[2].texture,
       this.filterPassTargets[3].texture,
-      this.filterPassTargets[4].texture,
     ];
 
     for (
@@ -571,7 +565,6 @@ export class LocalLightAlignmentApp {
       highResFilterPassTargets[1].texture,
       highResFilterPassTargets[2].texture,
       highResFilterPassTargets[3].texture,
-      highResFilterPassTargets[4].texture,
     ];
 
     for (
@@ -726,8 +719,6 @@ export class LocalLightAlignmentApp {
         this.properties.localLightAlignment.Sigma_1,
         this.properties.localLightAlignment.Sigma_2,
         this.properties.localLightAlignment.Sigma_3,
-        this.properties.localLightAlignment.Sigma_4,
-        this.properties.localLightAlignment.Sigma_5,
       ];
     this.postProcessingScene.localLightAlignmentMaterial.uniforms.gamma.value =
       this.properties.localLightAlignment.Gamma;
@@ -848,8 +839,6 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
       properties.localLightAlignment.Sigma_1 = newVal;
       properties.localLightAlignment.Sigma_2 = newVal;
       properties.localLightAlignment.Sigma_3 = newVal;
-      properties.localLightAlignment.Sigma_4 = newVal;
-      properties.localLightAlignment.Sigma_5 = newVal;
       onGuiChange();
     });
 
@@ -871,8 +860,7 @@ let properties: Properties = {
   sigmaVariations: scaleSeparations,
 };
 
-
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${scaleSeparations.length}`);
-let app = new LocalLightAlignmentApp("./models/david.obj", properties);
+let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);

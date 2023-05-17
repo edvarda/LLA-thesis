@@ -9,8 +9,6 @@ function getScaleVariationWithMultiplier(multiplier: number) {
         SigmaS_1: 0,
         SigmaS_2: 0,
         SigmaS_3: 0,
-        SigmaS_4: 0,
-        SigmaS_5: 0,
       },
     },
   };
@@ -19,7 +17,7 @@ function getScaleVariationWithMultiplier(multiplier: number) {
     current = Math.round(current * multiplier * 100) / 100;
     parameters.bilateralFilter.SigmaS_individual[`SigmaS_${i}`] = current;
   }
-  parameters.testName = `SigmaSpatial[${parameters.bilateralFilter.SigmaS_individual.SigmaS_0} .. ${parameters.bilateralFilter.SigmaS_individual.SigmaS_5}]`;
+  parameters.testName = `SigmaSpatial[${parameters.bilateralFilter.SigmaS_individual.SigmaS_0} .. ${parameters.bilateralFilter.SigmaS_individual.SigmaS_3}]`;
   return parameters;
 }
 

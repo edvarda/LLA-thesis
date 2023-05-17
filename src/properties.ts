@@ -17,8 +17,6 @@ type Properties = {
       SigmaS_1?: number;
       SigmaS_2?: number;
       SigmaS_3?: number;
-      SigmaS_4?: number;
-      SigmaS_5?: number;
     };
     SigmaSMultiplier?: number;
     SigmaR?: number;
@@ -28,8 +26,6 @@ type Properties = {
     Sigma_1?: number;
     Sigma_2?: number;
     Sigma_3?: number;
-    Sigma_4?: number;
-    Sigma_5?: number;
     Sigma_all?: number;
     Epsilon?: number;
     Gamma?: number;
@@ -61,8 +57,6 @@ const defaultProperties: Properties = {
       SigmaS_1: 4,
       SigmaS_2: 8,
       SigmaS_3: 16,
-      SigmaS_4: 32,
-      SigmaS_5: 64,
     },
     SigmaSMultiplier: 1.7,
     SigmaR: 0.05,
@@ -72,12 +66,10 @@ const defaultProperties: Properties = {
     Sigma_1: 0.5,
     Sigma_2: 0.5,
     Sigma_3: 0.5,
-    Sigma_4: 0.5,
-    Sigma_5: 0.5,
     Sigma_all: 0.5,
     Epsilon: 5e-5,
     Gamma: 3,
-    numberOfScales: 6,
+    numberOfScales: 4,
     testStrength: 1,
   },
 };
