@@ -75,7 +75,7 @@ const defaultProperties: Properties = {
     Sigma_4: 0.5,
     Sigma_5: 0.5,
     Sigma_all: 0.5,
-    Epsilon: 5e-6,
+    Epsilon: 5e-5,
     Gamma: 3,
     numberOfScales: 6,
     testStrength: 1,
