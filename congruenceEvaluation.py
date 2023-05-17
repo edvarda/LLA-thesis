@@ -26,14 +26,13 @@ def asNpArraySum(image):
 
 
 def congruenceScore(V_s, V_c, e_s, e_c, mask):
-    score = (
-        np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
-        * dip.Abs(dip.DotProduct(V_c, V_s))
+    score = np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1)) * dip.Abs(
+        dip.DotProduct(V_c, V_s)
     )
 
     e_c_Masked = e_c
     e_c_Masked[mask == 0] = 0
-    return np.average(score,weights=(e_c_Masked))
+    return np.average(score, weights=(e_c_Masked))
 
 
 # def congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c, mask):
@@ -118,9 +117,8 @@ def runTest(preshading, depth, postshading):
     e_s, e_s_post, e_c = E
 
     mask = dip.ColorSpaceManager.Convert(depth, "gray") > 0
-    scoreBefore = congruenceScore(V_s, V_c, e_s, e_c)
-    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c)
-
+    scoreBefore = congruenceScore(V_s, V_c, e_s, e_c, mask)
+    scoreAfter = congruenceScore(V_s_post, V_c, e_s_post, e_c, mask)
 
     # congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c, mask)
 
