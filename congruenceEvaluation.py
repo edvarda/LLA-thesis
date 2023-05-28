@@ -15,6 +15,7 @@ def saveAsGrayscaleTIFF(imagePath):
     pngImage = Image.open(imagePath)
     grayscale = pngImage.convert("L")
     grayscale.save(imagePath.with_suffix(".tiff"))
+    pngImage.close()
 
 
 def clamp(num, min_value, max_value):
@@ -33,67 +34,6 @@ def congruenceScore(V_s, V_c, e_s, e_c, mask):
     e_c_Masked = e_c
     e_c_Masked[mask == 0] = 0
     return np.average(score, weights=(e_c_Masked))
-
-
-# def congruenceScoreFalseColorTest(V_s, V_s_post, e_s, e_s_post, V_c, e_c, mask):
-#     def numerator(V_s, e_s, V_c, e_c):
-#         return (
-#             e_c
-#             * np.subtract(1, np.clip(np.asarray(e_c - e_s), 0, 1))
-#             * dip.Abs(dip.DotProduct(V_c, V_s))
-#         )
-
-#     denominator = e_c
-
-#     postNum = numerator(V_s_post, e_s_post, V_c, e_c)
-#     preNum = numerator(V_s, e_s, V_c, e_c)
-
-#     myThing = asNpArraySum(postNum) / asNpArraySum(denominator)
-
-#     score = (np.subtract(1, np.clip(np.asarray(e_c - e_s_post), 0, 1))
-#             * dip.Abs(dip.DotProduct(V_c, V_s_post)))
-#     test = postNum/denominator
-#     testpre = preNum/denominator
-#     test[mask == 0] = 0
-#     testpre[mask == 0] = 0
-
-#     # testpre.Show()
-#     # wait = input("testpre (enter)")
-#     test.Show()
-#     wait = input("score (enter)")
-#     # wait = input("testpost (enter)")
-#     # testdiff = test-testpre
-#     # testdiff.Show()
-#     # wait = input("testdiff (enter)")
-#     e_c[mask == 0] = 0
-#     e_c.Show()
-#     wait = input("shapeflow magnitudes (enter)")
-#     e_s[mask == 0] = 0
-#     e_s.Show()
-#     wait = input("shadingflow magnitudes (enter)")
-
-#     V_s[mask == 0] = 0
-#     V_s.Show()
-#     wait = input("shadingflow directions (enter)")
-
-#     V_c[mask == 0] = 0
-#     V_c.Show()
-#     wait = input("shapeflow directions (enter)")
-
-#     hisThing = np.average(score,weights=(e_c))
-
-#     print(f"myThing {myThing}")
-#     print(f"hisThing: {hisThing}")
-#     wait = input("Press Enter to continue.")
-
-#     # result = post - pre
-#     # resDisplay = dip.ImageDisplay(result, "base")
-#     # resultColor = dip.ApplyColorMap(resDisplay, "diverging")
-#     # resultColor.Show()
-
-#     # dip.ImageWrite(colorMap, "colormap.jpg")
-
-#     return
 
 
 def runTest(preshading, depth, postshading):
