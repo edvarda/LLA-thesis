@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from pathlib import Path
 import math
+import pickle
 
 
 def saveAsGrayscaleTIFF(imagePath):
@@ -229,12 +230,21 @@ def createScaleSpaceTestPlot(folder, results):
     )
 
 
+def saveResults(results,filename):
+    try:
+        with open(f"{filename}results.pickle", "wb") as f:
+            pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
+    except Exception as ex:
+        print("Error during pickling object (Possibly unsupported):", ex)
+    
+
 dir = sys.argv[1]
 for path in Path(dir).iterdir():
     if path.is_dir():
         results = runTestsInFolder(path)
-        print(f"Processing tests in {path}")
-        if str(path.name).startswith("StrengthTests"):
-            createStrengthTestPlot(path, results)
-        elif str(path.name).startswith("ScaleSpaceTests"):
-            createScaleSpaceTestPlot(path, results)
+        print(f"Ran all tests in {path}")
+        saveResults(results,str(path))
+        # if str(path.name).startswith("StrengthTests"):
+        #     createStrengthTestPlot(path, results)
+        # elif str(path.name).startswith("ScaleSpaceTests"):
+        #     createScaleSpaceTestPlot(path, results)
