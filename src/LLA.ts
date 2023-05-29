@@ -417,7 +417,7 @@ export class LocalLightAlignmentApp {
 
   render = () => {
     this.renderGeometry();
-    stats.update();
+    // stats.update();
 
     if (this.shouldRenderPostProcessing) {
       this.renderPostProcessing();
@@ -851,8 +851,8 @@ function setupGUI(properties: Properties, onGuiChange: Function) {
   return gui;
 }
 
-const stats = Stats();
-document.body.appendChild(stats.dom);
+// const stats = Stats();
+// document.body.appendChild(stats.dom);
 
 let properties: Properties = {
   ...defaultProperties,
@@ -862,5 +862,5 @@ let properties: Properties = {
 
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${scaleSeparations.length}`);
-let app = new LocalLightAlignmentApp("./assets/helmet.obj", properties);
+let app = new LocalLightAlignmentApp("./assets/emperor.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);
