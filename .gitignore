@@ -8,6 +8,9 @@ completedTests/
 newCompletedTests/
 web/js
 web/models/
+plots/
+
+*.pickle
 
 # Default Node gitignore from https://github.com/github/gitignore
 
