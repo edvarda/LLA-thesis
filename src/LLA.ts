@@ -862,5 +862,5 @@ let properties: Properties = {
 
 console.log(`Number of tests ${scaleSpaceTests.tests.length}`);
 console.log(`Number of variations ${scaleSeparations.length}`);
-let app = new LocalLightAlignmentApp("./assets/david.obj", properties);
+let app = new LocalLightAlignmentApp("./smallAssets/david.obj", properties);
 let gui = setupGUI(properties, app.onGuiChange);
